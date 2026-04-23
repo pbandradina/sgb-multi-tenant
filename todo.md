@@ -75,5 +75,5 @@
 - [x] Botão 'Aplicar Código a Período' já existente cobre alterar equipe com período (Verde/Azul/Amarela com data início e fim)
 
 ## Correção Cálculo FMO
-- [ ] Corrigir calcularSaldoFMO: a cada 9 serviços consecutivos = 1 FMO (não contar dias brutos)
-- [ ] Exibir período de concessão da FMO no calendário (conforme projeto anterior)
+- [x] Corrigir calcularSaldoFMO: a cada 9 serviços consecutivos = 1 FMO (não contar dias brutos)
+- [x] Exibir período de concessão da FMO no calendário (conforme projeto anterior)

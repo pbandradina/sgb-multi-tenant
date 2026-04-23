@@ -127,9 +127,9 @@ export default function Escalas() {
     return map;
   }, [bombeiros]);
 
-  // Mapa: "YYYY-MM-DD" → [{ bombeiroNome, sigla, cor, afastamentoId }]
+  // Mapa: "YYYY-MM-DD" → [{ bombeiroNome, sigla, cor, afastamentoId, periodoConcessao }]
   const afastamentosPorDia = useMemo(() => {
-    const map: Record<string, Array<{ bombeiroNome: string; sigla: string; cor: string; afastamentoId: number }>> = {};
+    const map: Record<string, Array<{ bombeiroNome: string; sigla: string; cor: string; afastamentoId: number; periodoConcessao?: string }>> = {};
     if (!afastamentosMes || !bombeiros) return map;
     for (const item of afastamentosMes) {
       const af = (item as any).afastamento;
@@ -150,6 +150,7 @@ export default function Escalas() {
           sigla: af.tipo,
           cor: getSiglaColor(af.tipo),
           afastamentoId: af.id,
+          periodoConcessao: af.periodoConcessao ?? undefined,
         });
         cur.setDate(cur.getDate() + 1);
       }
@@ -208,7 +209,7 @@ export default function Escalas() {
       tipo: selectedSigla as any,
       dataInicio: dateStr,
       dataFim: dateStr,
-      descricao: selectedSigla === "FMO" && periodoConcessao ? `Período: ${periodoConcessao}` : undefined,
+      periodoConcessao: selectedSigla === "FMO" && periodoConcessao ? periodoConcessao : undefined,
     });
   }
 
@@ -308,15 +309,27 @@ export default function Escalas() {
                       </div>
                       {/* Siglas de afastamentos */}
                       {siglasDoDia.length > 0 && (
-                        <div className="w-full mt-1 flex flex-wrap gap-0.5 justify-center">
+                        <div className="w-full mt-1 flex flex-col gap-0.5 items-center">
                           {siglasDoDia.slice(0, 4).map((item, i) => (
-                            <span
-                              key={i}
-                              title={`${item.bombeiroNome} — ${item.sigla}`}
-                              className={`inline-flex items-center justify-center rounded text-[8px] font-black px-1 py-0.5 leading-none ${item.cor}`}
-                            >
-                              {item.sigla}
-                            </span>
+                            <div key={i} className="flex flex-col items-center gap-0">
+                              <span
+                                title={item.sigla === 'FMO' && item.periodoConcessao
+                                  ? `${item.bombeiroNome} — FMO (período: ${item.periodoConcessao})`
+                                  : `${item.bombeiroNome} — ${item.sigla}`}
+                                className={`inline-flex items-center justify-center rounded text-[8px] font-black px-1 py-0.5 leading-none ${item.cor}`}
+                              >
+                                {item.sigla}
+                              </span>
+                              {item.sigla === 'FMO' && item.periodoConcessao && (
+                                <span
+                                  className="text-[7px] text-amber-400 font-semibold leading-tight text-center"
+                                  style={{ maxWidth: '56px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                                  title={item.periodoConcessao}
+                                >
+                                  {item.periodoConcessao}
+                                </span>
+                              )}
+                            </div>
                           ))}
                           {siglasDoDia.length > 4 && (
                             <span className="text-[8px] text-muted-foreground font-medium">+{siglasDoDia.length - 4}</span>
