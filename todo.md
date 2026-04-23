@@ -35,3 +35,8 @@
 - [x] Testes unitários para routers de autenticação
 - [x] Testes de controle de acesso para quartel e bombeiro
 - [x] Testes de controle de acesso para afastamento
+
+## Ajustes
+- [x] Renomear equipes: VD → Prontidão Verde, VA → Prontidão Azul, VB → Prontidão Amarela, VC → Administrativo (schema, backend, frontend)
+- [x] Renomear FO → FMO (Folga Mensal Obrigatória) em todo o sistema
+- [x] Excluir bombeiros da equipe Administrativo do cálculo de FMO

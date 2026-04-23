@@ -1,0 +1,3 @@
+ALTER TABLE `bombeiros` MODIFY COLUMN `equipe` enum('Prontidão Verde','Prontidão Azul','Prontidão Amarela','Administrativo') NOT NULL;--> statement-breakpoint
+ALTER TABLE `escalas` MODIFY COLUMN `equipe` enum('Prontidão Verde','Prontidão Azul','Prontidão Amarela','Administrativo') NOT NULL;--> statement-breakpoint
+ALTER TABLE `prontidoes` MODIFY COLUMN `equipe` enum('Prontidão Verde','Prontidão Azul','Prontidão Amarela','Administrativo') NOT NULL;

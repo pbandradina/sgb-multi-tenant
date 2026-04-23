@@ -5,7 +5,7 @@ import { trpc } from "@/lib/trpc";
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { AppLayout } from "@/components/AppLayout";
-import { TeamBadge } from "@/components/TeamBadge";
+import { TeamBadge, EQUIPES, type Equipe } from "@/components/TeamBadge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,8 +18,7 @@ import { toast } from "sonner";
 
 const POSTOS = [
   "Soldado", "Cabo", "3º Sargento", "2º Sargento", "1º Sargento",
-  "Subtenente", "2º Tenente", "1º Tenente", "Capitão",
-  "Major", "Tenente-Coronel", "Coronel"
+  "Subtenente"
 ];
 
 export default function Bombeiros() {
@@ -77,7 +76,7 @@ export default function Bombeiros() {
       quartelId: quartelId!,
       nome: form.nome,
       posto: form.posto,
-      equipe: form.equipe as any,
+      equipe: form.equipe as Equipe,
       dataInicio: form.dataInicio,
     });
   };
@@ -102,15 +101,14 @@ export default function Bombeiros() {
               />
             </div>
             <Select value={filterEquipe} onValueChange={setFilterEquipe}>
-              <SelectTrigger className="w-28 bg-card border-border">
+              <SelectTrigger className="w-44 bg-card border-border">
                 <SelectValue placeholder="Equipe" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todas</SelectItem>
-                <SelectItem value="VD">VD</SelectItem>
-                <SelectItem value="VA">VA</SelectItem>
-                <SelectItem value="VB">VB</SelectItem>
-                <SelectItem value="VC">VC</SelectItem>
+                {EQUIPES.map(e => (
+                  <SelectItem key={e} value={e}>{e}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -123,7 +121,7 @@ export default function Bombeiros() {
         {/* Stats */}
         <div className="flex items-center gap-4 text-sm text-muted-foreground">
           <span className="flex items-center gap-1.5"><Users className="w-4 h-4" />{filtered.length} bombeiro{filtered.length !== 1 ? "s" : ""}</span>
-          {filterEquipe !== "all" && <TeamBadge equipe={filterEquipe as any} size="sm" />}
+          {filterEquipe !== "all" && <TeamBadge equipe={filterEquipe as Equipe} size="sm" />}
         </div>
 
         {/* Table */}
@@ -168,7 +166,7 @@ export default function Bombeiros() {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-sm text-muted-foreground">{b.posto}</td>
-                      <td className="px-4 py-3"><TeamBadge equipe={b.equipe as any} size="sm" /></td>
+                      <td className="px-4 py-3"><TeamBadge equipe={b.equipe as Equipe} size="sm" /></td>
                       <td className="px-4 py-3 text-sm text-muted-foreground">
                         {new Date(b.dataInicio).toLocaleDateString("pt-BR")}
                       </td>
@@ -214,16 +212,15 @@ export default function Bombeiros() {
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground uppercase tracking-wide">Equipe *</Label>
+              <Label className="text-xs text-muted-foreground uppercase tracking-wide">Equipe / Prontidão *</Label>
               <Select value={form.equipe} onValueChange={v => setForm(f => ({ ...f, equipe: v }))}>
                 <SelectTrigger className="bg-background border-border">
                   <SelectValue placeholder="Selecione a equipe" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="VD">VD — Viatura D</SelectItem>
-                  <SelectItem value="VA">VA — Viatura A</SelectItem>
-                  <SelectItem value="VB">VB — Viatura B</SelectItem>
-                  <SelectItem value="VC">VC — Viatura C</SelectItem>
+                  {EQUIPES.map(e => (
+                    <SelectItem key={e} value={e}>{e}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -248,7 +245,7 @@ export default function Bombeiros() {
           <AlertDialogHeader>
             <AlertDialogTitle>Remover Bombeiro</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação removerá o bombeiro e todos os seus dados (prontidões, afastamentos, FO). Deseja continuar?
+              Esta ação removerá o bombeiro e todos os seus dados (prontidões, afastamentos, FMO). Deseja continuar?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

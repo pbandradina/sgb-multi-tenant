@@ -66,7 +66,7 @@ export const bombeiros = mysqlTable("bombeiros", {
   quartelId: int("quartelId").notNull(),
   nome: varchar("nome", { length: 200 }).notNull(),
   posto: varchar("posto", { length: 100 }).notNull(),
-  equipe: mysqlEnum("equipe", ["VD", "VA", "VB", "VC"]).notNull(),
+  equipe: mysqlEnum("equipe", ["Prontidão Verde", "Prontidão Azul", "Prontidão Amarela", "Administrativo"]).notNull(),
   dataInicio: date("dataInicio").notNull(),
   ativo: boolean("ativo").default(true).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -82,7 +82,7 @@ export type InsertBombeiro = typeof bombeiros.$inferInsert;
 export const escalas = mysqlTable("escalas", {
   id: int("id").autoincrement().primaryKey(),
   quartelId: int("quartelId").notNull(),
-  equipe: mysqlEnum("equipe", ["VD", "VA", "VB", "VC"]).notNull(),
+  equipe: mysqlEnum("equipe", ["Prontidão Verde", "Prontidão Azul", "Prontidão Amarela", "Administrativo"]).notNull(),
   dataInicio: date("dataInicio").notNull(),
   dataFim: date("dataFim").notNull(),
   observacao: text("observacao"),
@@ -101,7 +101,7 @@ export const prontidoes = mysqlTable("prontidoes", {
   quartelId: int("quartelId").notNull(),
   bombeiroId: int("bombeiroId").notNull(),
   data: date("data").notNull(),
-  equipe: mysqlEnum("equipe", ["VD", "VA", "VB", "VC"]).notNull(),
+  equipe: mysqlEnum("equipe", ["Prontidão Verde", "Prontidão Azul", "Prontidão Amarela", "Administrativo"]).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 

@@ -29,7 +29,7 @@ export const escalaRouter = router({
   create: protectedProcedure
     .input(z.object({
       quartelId: z.number(),
-      equipe: z.enum(["VD", "VA", "VB", "VC"]),
+      equipe: z.enum(["Prontidão Verde", "Prontidão Azul", "Prontidão Amarela", "Administrativo"]),
       dataInicio: z.string(),
       dataFim: z.string(),
       observacao: z.string().optional(),

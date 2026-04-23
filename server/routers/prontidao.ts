@@ -39,7 +39,7 @@ export const prontidaoRouter = router({
       quartelId: z.number(),
       bombeiroId: z.number(),
       data: z.string(),
-      equipe: z.enum(["VD", "VA", "VB", "VC"]),
+      equipe: z.enum(["Prontidão Verde", "Prontidão Azul", "Prontidão Amarela", "Administrativo"]),
     }))
     .mutation(async ({ ctx, input }) => {
       if (ctx.user.role !== "admin") await assertQuartelAccess(ctx.user.id, input.quartelId);

@@ -80,9 +80,9 @@ export default function Home() {
         {/* Features */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-20 max-w-4xl w-full">
           {[
-            { icon: Users, title: "Gestão de Efetivo", desc: "Cadastre e gerencie bombeiros por posto, graduação e equipe (VD, VA, VB, VC)" },
+            { icon: Users, title: "Gestão de Efetivo", desc: "Cadastre e gerencie bombeiros por posto, graduação e prontidão (Verde, Azul, Amarela)" },
             { icon: Calendar, title: "Escalas e Prontidões", desc: "Visualize escalas em calendário dinâmico e registre prontidões automaticamente" },
-            { icon: BarChart3, title: "Folgas Obrigatórias", desc: "Cálculo automático de saldo de FO baseado em prontidões e afastamentos" },
+            { icon: BarChart3, title: "Folgas Mensais Obrigatórias (FMO)", desc: "Cálculo automático de saldo de FMO baseado em prontidões e afastamentos" },
           ].map((feature) => {
             const Icon = feature.icon;
             return (

@@ -5,13 +5,13 @@ import { trpc } from "@/lib/trpc";
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { AppLayout } from "@/components/AppLayout";
-import { TeamBadge } from "@/components/TeamBadge";
+import { TeamBadge, EQUIPES_PRONTIDAO, type Equipe } from "@/components/TeamBadge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Loader2, Plus, Search, TrendingUp, TrendingDown, Minus, Info } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -23,7 +23,7 @@ export default function FolhasObrigatorias() {
   const [search, setSearch] = useState("");
   const [filterEquipe, setFilterEquipe] = useState("todas");
   const [showAddProntidao, setShowAddProntidao] = useState(false);
-  const [formProntidao, setFormProntidao] = useState({ bombeiroId: "", data: "", equipe: "VD" });
+  const [formProntidao, setFormProntidao] = useState({ bombeiroId: "", data: "", equipe: "Prontidão Verde" as Equipe });
 
   useEffect(() => {
     if (!loading && !isAuthenticated) { window.location.href = getLoginUrl(); return; }
@@ -38,13 +38,18 @@ export default function FolhasObrigatorias() {
     onSuccess: () => {
       utils.fo.saldoQuartel.invalidate();
       setShowAddProntidao(false);
-      setFormProntidao({ bombeiroId: "", data: "", equipe: "VD" });
+      setFormProntidao({ bombeiroId: "", data: "", equipe: "Prontidão Verde" });
       toast.success("Prontidão registrada com sucesso!");
     },
     onError: (e) => toast.error(e.message),
   });
 
+  // Apenas bombeiros elegíveis para FMO (não Administrativo)
+  const bombeirosElegiveis = (bombeiros || []).filter(b => b.equipe !== "Administrativo");
+
   const filtered = (saldos || []).filter((item: any) => {
+    // Excluir bombeiros Administrativos da listagem de FMO
+    if (item.bombeiro?.equipe === "Administrativo") return false;
     const nome = item.bombeiro?.nome?.toLowerCase() || "";
     const matchSearch = nome.includes(search.toLowerCase());
     const matchEquipe = filterEquipe === "todas" || item.bombeiro?.equipe === filterEquipe;
@@ -56,13 +61,12 @@ export default function FolhasObrigatorias() {
       toast.error("Preencha todos os campos obrigatórios.");
       return;
     }
-    // Get equipe from selected bombeiro
     const selectedBombeiro = (bombeiros || []).find(b => b.id === parseInt(formProntidao.bombeiroId));
     createProntidao.mutate({
       quartelId: quartelId!,
       bombeiroId: parseInt(formProntidao.bombeiroId),
       data: formProntidao.data,
-      equipe: (selectedBombeiro?.equipe || formProntidao.equipe) as any,
+      equipe: (selectedBombeiro?.equipe || formProntidao.equipe) as Equipe,
     });
   };
 
@@ -82,12 +86,12 @@ export default function FolhasObrigatorias() {
     return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="w-8 h-8 text-primary animate-spin" /></div>;
   }
 
-  const totalPositivo = (saldos || []).filter((s: any) => s.saldo?.saldoFO > 0).length;
-  const totalNegativo = (saldos || []).filter((s: any) => s.saldo?.saldoFO < 0).length;
-  const totalZerado = (saldos || []).filter((s: any) => s.saldo?.saldoFO === 0).length;
+  const totalPositivo = filtered.filter((s: any) => (s.saldo?.saldoFMO ?? 0) > 0).length;
+  const totalNegativo = filtered.filter((s: any) => (s.saldo?.saldoFMO ?? 0) < 0).length;
+  const totalZerado = filtered.filter((s: any) => (s.saldo?.saldoFMO ?? 0) === 0).length;
 
   return (
-    <AppLayout title="Folgas Obrigatórias (FO)">
+    <AppLayout title="Folgas Mensais Obrigatórias (FMO)">
       <div className="space-y-5">
         {/* Summary cards */}
         <div className="grid grid-cols-3 gap-3">
@@ -139,15 +143,14 @@ export default function FolhasObrigatorias() {
               />
             </div>
             <Select value={filterEquipe} onValueChange={setFilterEquipe}>
-              <SelectTrigger className="w-32 bg-card border-border">
+              <SelectTrigger className="w-44 bg-card border-border">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="todas">Todas</SelectItem>
-                <SelectItem value="VD">VD</SelectItem>
-                <SelectItem value="VA">VA</SelectItem>
-                <SelectItem value="VB">VB</SelectItem>
-                <SelectItem value="VC">VC</SelectItem>
+                {EQUIPES_PRONTIDAO.map(e => (
+                  <SelectItem key={e} value={e}>{e}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -161,8 +164,9 @@ export default function FolhasObrigatorias() {
         <div className="flex items-start gap-2 p-3 rounded-lg bg-secondary/30 border border-border">
           <Info className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
           <p className="text-xs text-muted-foreground">
-            O saldo de FO é calculado automaticamente com base nas prontidões realizadas e afastamentos registrados.
-            Cada prontidão gera direito a 1 FO. Afastamentos não geram FO.
+            O saldo de FMO é calculado automaticamente com base nas prontidões realizadas. A cada 2 prontidões, o bombeiro
+            tem direito a 1 FMO. Apenas bombeiros das prontidões <strong>Verde, Azul e Amarela</strong> são elegíveis.
+            Bombeiros do setor Administrativo não entram neste cálculo.
           </p>
         </div>
 
@@ -182,17 +186,19 @@ export default function FolhasObrigatorias() {
                 <thead>
                   <tr className="border-b border-border bg-secondary/30">
                     <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Bombeiro</th>
-                    <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Equipe</th>
-                    <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Prontidões</th>
-                    <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">FO Tiradas</th>
-                    <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Saldo FO</th>
+                    <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Prontidão</th>
+                    <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Serviços</th>
+                    <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">FMO Geradas</th>
+                    <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">FMO Usadas</th>
+                    <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Saldo FMO</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filtered.map((item: any) => {
-                    const saldo = item.saldo?.saldoFO ?? 0;
+                    const saldo = item.saldo?.saldoFMO ?? 0;
                     const prontidoes = item.saldo?.totalProntidoes ?? 0;
-                    const foTiradas = item.saldo?.totalFOTiradas ?? 0;
+                    const fmoGeradas = item.saldo?.totalFMOGeradas ?? 0;
+                    const fmoUsadas = item.saldo?.fmoUsadas ?? 0;
                     return (
                       <tr key={item.bombeiro.id} className="border-b border-border/50 hover:bg-secondary/20 transition-colors">
                         <td className="px-4 py-3">
@@ -207,13 +213,16 @@ export default function FolhasObrigatorias() {
                           </div>
                         </td>
                         <td className="px-4 py-3 text-center">
-                          <TeamBadge equipe={item.bombeiro.equipe} />
+                          <TeamBadge equipe={item.bombeiro.equipe as Equipe} size="sm" />
                         </td>
                         <td className="px-4 py-3 text-center">
                           <span className="text-sm font-semibold text-foreground">{prontidoes}</span>
                         </td>
                         <td className="px-4 py-3 text-center">
-                          <span className="text-sm font-semibold text-foreground">{foTiradas}</span>
+                          <span className="text-sm font-semibold text-foreground">{fmoGeradas}</span>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span className="text-sm font-semibold text-foreground">{fmoUsadas}</span>
                         </td>
                         <td className="px-4 py-3 text-center">
                           <span className={cn(
@@ -248,7 +257,7 @@ export default function FolhasObrigatorias() {
                   <SelectValue placeholder="Selecione o bombeiro" />
                 </SelectTrigger>
                 <SelectContent>
-                  {(bombeiros || []).map(b => (
+                  {bombeirosElegiveis.map(b => (
                     <SelectItem key={b.id} value={String(b.id)}>
                       {b.posto} {b.nome} — {b.equipe}
                     </SelectItem>
@@ -261,14 +270,13 @@ export default function FolhasObrigatorias() {
               <Input type="date" value={formProntidao.data} onChange={e => setFormProntidao(f => ({ ...f, data: e.target.value }))} className="bg-background border-border" />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground uppercase tracking-wide">Equipe (se diferente)</Label>
-              <Select value={formProntidao.equipe} onValueChange={v => setFormProntidao(f => ({ ...f, equipe: v }))}>
+              <Label className="text-xs text-muted-foreground uppercase tracking-wide">Prontidão (se diferente da equipe)</Label>
+              <Select value={formProntidao.equipe} onValueChange={v => setFormProntidao(f => ({ ...f, equipe: v as Equipe }))}>
                 <SelectTrigger className="bg-background border-border"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="VD">VD</SelectItem>
-                  <SelectItem value="VA">VA</SelectItem>
-                  <SelectItem value="VB">VB</SelectItem>
-                  <SelectItem value="VC">VC</SelectItem>
+                  {EQUIPES_PRONTIDAO.map(e => (
+                    <SelectItem key={e} value={e}>{e}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

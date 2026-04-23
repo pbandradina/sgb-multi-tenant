@@ -38,7 +38,7 @@ export const bombeiroRouter = router({
       quartelId: z.number(),
       nome: z.string().min(3),
       posto: z.string().min(2),
-      equipe: z.enum(["VD", "VA", "VB", "VC"]),
+      equipe: z.enum(["Prontidão Verde", "Prontidão Azul", "Prontidão Amarela", "Administrativo"]),
       dataInicio: z.string(), // YYYY-MM-DD
     }))
     .mutation(async ({ ctx, input }) => {
@@ -59,7 +59,7 @@ export const bombeiroRouter = router({
       quartelId: z.number(),
       nome: z.string().min(3).optional(),
       posto: z.string().min(2).optional(),
-      equipe: z.enum(["VD", "VA", "VB", "VC"]).optional(),
+      equipe: z.enum(["Prontidão Verde", "Prontidão Azul", "Prontidão Amarela", "Administrativo"]).optional(),
       dataInicio: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {

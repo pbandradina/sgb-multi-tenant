@@ -5,18 +5,17 @@ import { trpc } from "@/lib/trpc";
 import { useEffect, useState, useMemo } from "react";
 import { useLocation } from "wouter";
 import { AppLayout } from "@/components/AppLayout";
-import { TeamBadge, getEquipeColor } from "@/components/TeamBadge";
+import { TeamBadge, getEquipeColor, EQUIPES, type Equipe } from "@/components/TeamBadge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, ChevronLeft, ChevronRight, Plus, Calendar } from "lucide-react";
+import { Loader2, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-const EQUIPES = ["VD", "VA", "VB", "VC"] as const;
 const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 const DIAS_SEMANA = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
 
@@ -26,7 +25,7 @@ export default function Escalas() {
   const [, navigate] = useLocation();
   const [currentDate, setCurrentDate] = useState(() => new Date());
   const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm] = useState({ equipe: "VD", dataInicio: "", dataFim: "", turno: "24h" });
+  const [form, setForm] = useState({ equipe: "Prontidão Verde" as Equipe, dataInicio: "", dataFim: "", turno: "24h" });
 
   useEffect(() => {
     if (!loading && !isAuthenticated) { window.location.href = getLoginUrl(); return; }
@@ -49,7 +48,7 @@ export default function Escalas() {
     onSuccess: () => {
       utils.escala.list.invalidate();
       setShowAdd(false);
-      setForm({ equipe: "VD", dataInicio: "", dataFim: "", turno: "24h" });
+      setForm({ equipe: "Prontidão Verde", dataInicio: "", dataFim: "", turno: "24h" });
       toast.success("Escala criada com sucesso!");
     },
     onError: (e) => toast.error(e.message),
@@ -90,7 +89,7 @@ export default function Escalas() {
     if (!form.dataInicio || !form.dataFim) { toast.error("Preencha as datas."); return; }
     createMutation.mutate({
       quartelId: quartelId!,
-      equipe: form.equipe as any,
+      equipe: form.equipe,
       dataInicio: form.dataInicio,
       dataFim: form.dataFim,
       observacao: form.turno,
@@ -121,11 +120,11 @@ export default function Escalas() {
           </div>
           <div className="flex items-center gap-3">
             {/* Legend */}
-            <div className="hidden sm:flex items-center gap-3">
+            <div className="hidden sm:flex items-center gap-2 flex-wrap">
               {EQUIPES.map(eq => (
                 <div key={eq} className="flex items-center gap-1.5">
                   <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: getEquipeColor(eq) + "60" }} />
-                  <span className="text-xs text-muted-foreground">{eq}</span>
+                  <span className="text-xs text-muted-foreground">{eq === "Administrativo" ? "Admin" : eq.replace("Prontidão ", "")}</span>
                 </div>
               ))}
             </div>
@@ -172,19 +171,23 @@ export default function Escalas() {
                           {day}
                         </span>
                         <div className="space-y-0.5">
-                          {dayEscalas.slice(0, 3).map((e: any, i: number) => (
-                            <div
-                              key={i}
-                              className="text-xs px-1 py-0.5 rounded truncate font-medium"
-                              style={{
-                                backgroundColor: getEquipeColor(e.equipe as any) + "25",
-                                color: getEquipeColor(e.equipe as any),
-                                borderLeft: `2px solid ${getEquipeColor(e.equipe as any)}`,
-                              }}
-                            >
-                              {e.equipe}
-                            </div>
-                          ))}
+                          {dayEscalas.slice(0, 3).map((e: any, i: number) => {
+                            const color = getEquipeColor(e.equipe as Equipe);
+                            const shortName = (e.equipe as string) === "Administrativo" ? "Admin" : (e.equipe as string).replace("Prontidão ", "");
+                            return (
+                              <div
+                                key={i}
+                                className="text-xs px-1 py-0.5 rounded truncate font-medium"
+                                style={{
+                                  backgroundColor: color + "25",
+                                  color: color,
+                                  borderLeft: `2px solid ${color}`,
+                                }}
+                              >
+                                {shortName}
+                              </div>
+                            );
+                          })}
                           {dayEscalas.length > 3 && (
                             <div className="text-xs text-muted-foreground px-1">+{dayEscalas.length - 3}</div>
                           )}
@@ -211,12 +214,12 @@ export default function Escalas() {
                 {escalas.map((e: any) => (
                   <div key={e.id} className="flex items-center justify-between py-2 border-b border-border/50 last:border-0">
                     <div className="flex items-center gap-3">
-                      <TeamBadge equipe={e.equipe as any} />
+                      <TeamBadge equipe={e.equipe as Equipe} />
                       <div>
-                        <p className="text-sm font-medium text-foreground">Viatura {e.equipe}</p>
+                        <p className="text-sm font-medium text-foreground">{e.equipe}</p>
                         <p className="text-xs text-muted-foreground">
                           {new Date(e.dataInicio).toLocaleDateString("pt-BR")} — {new Date(e.dataFim).toLocaleDateString("pt-BR")}
-                          {" · "}{e.turno}
+                          {e.observacao ? ` · ${e.observacao}` : ""}
                         </p>
                       </div>
                     </div>
@@ -236,16 +239,15 @@ export default function Escalas() {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground uppercase tracking-wide">Equipe *</Label>
-              <Select value={form.equipe} onValueChange={v => setForm(f => ({ ...f, equipe: v }))}>
+              <Label className="text-xs text-muted-foreground uppercase tracking-wide">Prontidão / Equipe *</Label>
+              <Select value={form.equipe} onValueChange={v => setForm(f => ({ ...f, equipe: v as Equipe }))}>
                 <SelectTrigger className="bg-background border-border">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="VD">VD — Viatura D</SelectItem>
-                  <SelectItem value="VA">VA — Viatura A</SelectItem>
-                  <SelectItem value="VB">VB — Viatura B</SelectItem>
-                  <SelectItem value="VC">VC — Viatura C</SelectItem>
+                  {EQUIPES.map(e => (
+                    <SelectItem key={e} value={e}>{e}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

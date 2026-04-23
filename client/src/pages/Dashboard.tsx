@@ -49,15 +49,15 @@ export default function Dashboard() {
   }
 
   const totalBombeiros = bombeiros?.length || 0;
-  const porEquipe = { VD: 0, VA: 0, VB: 0, VC: 0 };
-  bombeiros?.forEach(b => { if (b.equipe in porEquipe) porEquipe[b.equipe as keyof typeof porEquipe]++; });
+  const porEquipe: Record<string, number> = { "Prontidão Verde": 0, "Prontidão Azul": 0, "Prontidão Amarela": 0, "Administrativo": 0 };
+  bombeiros?.forEach(b => { if (b.equipe in porEquipe) porEquipe[b.equipe]++; });
 
   const totalAfastados = afastamentosAtivos?.length || 0;
   const efetivoPresenteHoje = totalBombeiros - totalAfastados;
 
   // Bombeiros com FO negativo (devendo FO)
-  const comFONegativo = saldosFO?.filter(s => s.saldo.saldoFO < 0) || [];
-  const comFOAlto = saldosFO?.filter(s => s.saldo.saldoFO >= 3) || [];
+  const comFONegativo = saldosFO?.filter(s => s.saldo.saldoFMO < 0) || [];
+  const comFOAlto = saldosFO?.filter(s => s.saldo.saldoFMO >= 3) || [];
 
   return (
     <AppLayout title={`Dashboard — ${quartelNome}`}>
@@ -134,24 +134,23 @@ export default function Dashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {(["VD", "VA", "VB", "VC"] as const).map(equipe => {
-                const count = porEquipe[equipe];
+              {(["Prontidão Verde", "Prontidão Azul", "Prontidão Amarela", "Administrativo"] as const).map(equipe => {
+                const count = porEquipe[equipe] ?? 0;
                 const pct = totalBombeiros > 0 ? Math.round((count / totalBombeiros) * 100) : 0;
+                const color = equipe === "Prontidão Verde" ? "#10b981" : equipe === "Prontidão Azul" ? "#3b82f6" : equipe === "Prontidão Amarela" ? "#f59e0b" : "#94a3b8";
+                const shortName = equipe === "Administrativo" ? "Admin" : equipe.replace("Prontidão ", "");
                 return (
                   <div key={equipe} className="flex items-center gap-3">
-                    <TeamBadge equipe={equipe} size="sm" className="w-10 justify-center" />
+                    <TeamBadge equipe={equipe} size="sm" short />
                     <div className="flex-1">
                       <div className="flex justify-between text-xs mb-1">
-                        <span className="text-muted-foreground">Viatura {equipe}</span>
+                        <span className="text-muted-foreground">{shortName}</span>
                         <span className="text-foreground font-medium">{count} bombeiros</span>
                       </div>
                       <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
                         <div
                           className="h-full rounded-full transition-all duration-500"
-                          style={{
-                            width: `${pct}%`,
-                            backgroundColor: equipe === "VD" ? "#10b981" : equipe === "VA" ? "#3b82f6" : equipe === "VB" ? "#f59e0b" : "#ef4444"
-                          }}
+                          style={{ width: `${pct}%`, backgroundColor: color }}
                         />
                       </div>
                     </div>
@@ -201,7 +200,7 @@ export default function Dashboard() {
         <Card className="bg-card border-border">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold text-foreground" style={{ fontFamily: "Montserrat, sans-serif" }}>
-              Saldo de Folgas Obrigatórias (FO)
+              Saldo de Folgas Mensais Obrigatórias (FMO)
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -217,9 +216,9 @@ export default function Dashboard() {
                   <div
                     key={bombeiro.id}
                     className={`flex items-center justify-between p-3 rounded-lg border ${
-                      saldo.saldoFO >= 3
+                      saldo.saldoFMO >= 3
                         ? "bg-amber-500/10 border-amber-500/30"
-                        : saldo.saldoFO < 0
+                        : saldo.saldoFMO < 0
                         ? "bg-red-500/10 border-red-500/30"
                         : "bg-secondary border-border"
                     }`}
@@ -232,11 +231,11 @@ export default function Dashboard() {
                       </div>
                     </div>
                     <div className="text-right flex-shrink-0 ml-2">
-                      <p className={`text-lg font-bold ${saldo.saldoFO >= 3 ? "text-amber-400" : saldo.saldoFO < 0 ? "text-red-400" : "text-emerald-400"}`}
+                      <p className={`text-lg font-bold ${saldo.saldoFMO >= 3 ? "text-amber-400" : saldo.saldoFMO < 0 ? "text-red-400" : "text-emerald-400"}`}
                         style={{ fontFamily: "Montserrat, sans-serif" }}>
-                        {saldo.saldoFO >= 0 ? "+" : ""}{saldo.saldoFO}
+                        {saldo.saldoFMO >= 0 ? "+" : ""}{saldo.saldoFMO}
                       </p>
-                      <p className="text-xs text-muted-foreground">FO</p>
+                      <p className="text-xs text-muted-foreground">FMO</p>
                     </div>
                   </div>
                 ))}

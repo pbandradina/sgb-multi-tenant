@@ -15,6 +15,13 @@
       "when": 1776947781678,
       "tag": "0001_stormy_the_anarchist",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1776951122040,
+      "tag": "0002_busy_iron_monger",
+      "breakpoints": true
     }
   ]
 }

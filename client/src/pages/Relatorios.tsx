@@ -59,8 +59,8 @@ export default function Relatorios() {
   const stats = useMemo(() => {
     if (!relatorio) return null;
     const total = relatorio.length;
-    const positivos = relatorio.filter((r: any) => (r.saldo?.saldoFO ?? 0) > 0).length;
-    const negativos = relatorio.filter((r: any) => (r.saldo?.saldoFO ?? 0) < 0).length;
+    const positivos = relatorio.filter((r: any) => (r.saldo?.saldoFMO ?? 0) > 0).length;
+    const negativos = relatorio.filter((r: any) => (r.saldo?.saldoFMO ?? 0) < 0).length;
     const totalProntidoes = relatorio.reduce((acc: number, r: any) => acc + (r.saldo?.totalProntidoes ?? 0), 0);
     return { total, positivos, negativos, totalProntidoes };
   }, [relatorio]);
@@ -70,7 +70,7 @@ export default function Relatorios() {
   }
 
   return (
-    <AppLayout title="Relatórios de FO">
+    <AppLayout title="Relatórios de FMO">
       <div className="space-y-5">
         {/* Filter card */}
         <Card className="bg-card border-border">
@@ -105,10 +105,10 @@ export default function Relatorios() {
                   <SelectTrigger className="bg-background border-border"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="todas">Todas as equipes</SelectItem>
-                    <SelectItem value="VD">VD</SelectItem>
-                    <SelectItem value="VA">VA</SelectItem>
-                    <SelectItem value="VB">VB</SelectItem>
-                    <SelectItem value="VC">VC</SelectItem>
+                    <SelectItem value="Prontidão Verde">Prontidão Verde</SelectItem>
+                    <SelectItem value="Prontidão Azul">Prontidão Azul</SelectItem>
+                    <SelectItem value="Prontidão Amarela">Prontidão Amarela</SelectItem>
+                    <SelectItem value="Administrativo">Administrativo</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -172,7 +172,7 @@ export default function Relatorios() {
           <Card className="bg-card border-border overflow-hidden">
             <CardHeader className="pb-3 flex flex-row items-center justify-between">
               <CardTitle className="text-sm font-semibold" style={{ fontFamily: "Montserrat, sans-serif" }}>
-                Relatório de FO — {quartelNome}
+                Relatório de FMO — {quartelNome}
                 <span className="ml-2 text-xs text-muted-foreground font-normal">
                   {new Date(filtros.dataInicio + "T12:00:00").toLocaleDateString("pt-BR")} a {new Date(filtros.dataFim + "T12:00:00").toLocaleDateString("pt-BR")}
                   {filtros.equipe !== "todas" && ` · Equipe ${filtros.equipe}`}
@@ -187,13 +187,13 @@ export default function Relatorios() {
                     <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Posto</th>
                     <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Equipe</th>
                     <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Prontidões</th>
-                    <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">FO Tiradas</th>
-                    <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Saldo FO</th>
+                    <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">FMO Usadas</th>
+                    <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Saldo FMO</th>
                   </tr>
                 </thead>
                 <tbody>
                   {relatorio.map((item: any) => {
-                    const saldo = item.saldo?.saldoFO ?? 0;
+                    const saldo = item.saldo?.saldoFMO ?? 0;
                     return (
                       <tr key={item.bombeiro.id} className="border-b border-border/50 hover:bg-secondary/20 transition-colors">
                         <td className="px-4 py-3">
@@ -209,7 +209,7 @@ export default function Relatorios() {
                           <span className="text-sm font-semibold text-foreground">{item.saldo?.totalProntidoes ?? 0}</span>
                         </td>
                         <td className="px-4 py-3 text-center">
-                          <span className="text-sm font-semibold text-foreground">{item.saldo?.totalFOTiradas ?? 0}</span>
+                          <span className="text-sm font-semibold text-foreground">{item.saldo?.fmoUsadas ?? 0}</span>
                         </td>
                         <td className="px-4 py-3 text-center">
                           <span className={cn("text-sm font-bold", getSaldoColor(saldo))}>

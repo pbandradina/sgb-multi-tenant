@@ -102,7 +102,7 @@ export const foRouter = router({
       quartelId: z.number(),
       dataInicio: z.string(),
       dataFim: z.string(),
-      equipe: z.enum(["VD", "VA", "VB", "VC"]).optional(),
+      equipe: z.enum(["Prontidão Verde", "Prontidão Azul", "Prontidão Amarela", "Administrativo"]).optional(),
     }))
     .query(async ({ ctx, input }) => {
       if (ctx.user.role !== "admin") await assertQuartelAccess(ctx.user.id, input.quartelId);

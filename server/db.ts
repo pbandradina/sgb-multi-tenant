@@ -322,23 +322,36 @@ export async function deleteAfastamento(id: number, quartelId: number) {
     .where(and(eq(afastamentos.id, id), eq(afastamentos.quartelId, quartelId)));
 }
 
-// ─── FO (Folgas Obrigatórias) ─────────────────────────────────────────────────
-// Regra: a cada 2 prontidões realizadas, o bombeiro tem direito a 1 FO.
-// Afastamentos não contam como prontidão.
+// ─── FMO (Folgas Mensais Obrigatórias) ───────────────────────────────────────────────
+// Regra: a cada 2 prontidões realizadas, o bombeiro tem direito a 1 FMO.
+// Apenas bombeiros das equipes Prontidão Verde, Prontidão Azul e Prontidão Amarela.
+// Bombeiros da equipe Administrativo não entram no cálculo.
 
-export async function calcularSaldoFO(bombeiroId: number, quartelId: number) {
+export async function calcularSaldoFMO(bombeiroId: number, quartelId: number) {
   const db = await getDb();
-  if (!db) return { totalProntidoes: 0, totalFOGeradas: 0, saldoFO: 0 };
+  if (!db) return { totalProntidoes: 0, totalFMOGeradas: 0, fmoUsadas: 0, saldoFMO: 0, elegivel: false };
+
+  // Verificar se o bombeiro é elegível (não é Administrativo)
+  const bombeiroRows = await db
+    .select()
+    .from(bombeiros)
+    .where(and(eq(bombeiros.id, bombeiroId), eq(bombeiros.quartelId, quartelId)))
+    .limit(1);
+
+  const bombeiro = bombeiroRows[0];
+  if (!bombeiro || bombeiro.equipe === "Administrativo") {
+    return { totalProntidoes: 0, totalFMOGeradas: 0, fmoUsadas: 0, saldoFMO: 0, elegivel: false };
+  }
 
   const totalProntidoes = await db
     .select()
     .from(prontidoes)
     .where(and(eq(prontidoes.bombeiroId, bombeiroId), eq(prontidoes.quartelId, quartelId)));
 
-  const totalFOGeradas = Math.floor(totalProntidoes.length / 2);
+  const totalFMOGeradas = Math.floor(totalProntidoes.length / 2);
 
-  // FO usadas = afastamentos do tipo "dispensa" (FO utilizada)
-  const foUsadas = await db
+  // FMO usadas = afastamentos do tipo "dispensa" (FMO utilizada)
+  const fmoUsadas = await db
     .select()
     .from(afastamentos)
     .where(
@@ -349,12 +362,16 @@ export async function calcularSaldoFO(bombeiroId: number, quartelId: number) {
       )
     );
 
-  const saldoFO = totalFOGeradas - foUsadas.length;
+  const saldoFMO = totalFMOGeradas - fmoUsadas.length;
 
   return {
     totalProntidoes: totalProntidoes.length,
-    totalFOGeradas,
-    foUsadas: foUsadas.length,
-    saldoFO: Math.max(0, saldoFO),
+    totalFMOGeradas,
+    fmoUsadas: fmoUsadas.length,
+    saldoFMO: Math.max(0, saldoFMO),
+    elegivel: true,
   };
 }
+
+// Manter alias para compatibilidade
+export const calcularSaldoFO = calcularSaldoFMO;
