@@ -2,15 +2,16 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
 import { useQuartel } from "@/contexts/QuartelContext";
 import { trpc } from "@/lib/trpc";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useLocation } from "wouter";
 import { AppLayout } from "@/components/AppLayout";
 import { type Equipe } from "@/components/TeamBadge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Loader2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Loader2, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SIGLAS_AFASTAMENTO } from "@/pages/Afastamentos";
+import { toast } from "sonner";
 
 const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 const DIAS_SEMANA = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
@@ -19,7 +20,6 @@ const DIAS_SEMANA = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
 // Referência: 01/Jan/2025 = Verde (índice 0)
 const CYCLE_REFERENCE = new Date(2025, 0, 1);
 const CYCLE: Equipe[] = ["Prontidão Verde", "Prontidão Amarela", "Prontidão Azul"];
-
 const CYCLE_COLORS: Record<Equipe, { border: string; text: string; cellBg: string; badgeBg: string }> = {
   "Prontidão Verde":   { border: "#10b981", text: "#10b981", cellBg: "rgba(16,185,129,0.07)",  badgeBg: "rgba(16,185,129,0.18)" },
   "Prontidão Amarela": { border: "#f59e0b", text: "#f59e0b", cellBg: "rgba(245,158,11,0.07)",  badgeBg: "rgba(245,158,11,0.18)" },
@@ -45,16 +45,39 @@ function toDateStr(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
+interface CellPopover {
+  date: Date;
+  dateStr: string;
+  x: number;
+  y: number;
+}
+
 export default function Escalas() {
   const { loading, isAuthenticated } = useAuth();
   const { quartelId } = useQuartel();
   const [, navigate] = useLocation();
   const [currentDate, setCurrentDate] = useState(() => new Date());
+  const [popover, setPopover] = useState<CellPopover | null>(null);
+  const [selectedBombeiroId, setSelectedBombeiroId] = useState<number | null>(null);
+  const [selectedSigla, setSelectedSigla] = useState<string>("");
+  const [periodoConcessao, setPeriodoConcessao] = useState<string>("");
+  const popoverRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!loading && !isAuthenticated) { window.location.href = getLoginUrl(); return; }
     if (!loading && isAuthenticated && !quartelId) navigate("/selecionar-quartel");
   }, [loading, isAuthenticated, quartelId]);
+
+  // Close popover on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+        setPopover(null);
+      }
+    }
+    if (popover) document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [popover]);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -66,10 +89,26 @@ export default function Escalas() {
   );
 
   // Buscar afastamentos do mês atual
-  const { data: afastamentosMes } = trpc.afastamento.listByMes.useQuery(
+  const { data: afastamentosMes, refetch: refetchAfastamentos } = trpc.afastamento.listByMes.useQuery(
     { quartelId: quartelId!, ano: year, mes: month + 1 },
     { enabled: !!quartelId }
   );
+
+  const utils = trpc.useUtils();
+
+  // Mutation para criar afastamento de 1 dia diretamente da célula
+  const createAfastamento = trpc.afastamento.create.useMutation({
+    onSuccess: () => {
+      toast.success("Afastamento registrado!");
+      refetchAfastamentos();
+      utils.afastamento.listByMes.invalidate();
+      setPopover(null);
+      setSelectedBombeiroId(null);
+      setSelectedSigla("");
+      setPeriodoConcessao("");
+    },
+    onError: (err) => toast.error(err.message),
+  });
 
   const prevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
   const nextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
@@ -88,26 +127,20 @@ export default function Escalas() {
     return map;
   }, [bombeiros]);
 
-  // Mapa: "YYYY-MM-DD" → [{ bombeiroNome, sigla, cor }]
-  // Para cada dia do mês, quais afastamentos existem
+  // Mapa: "YYYY-MM-DD" → [{ bombeiroNome, sigla, cor, afastamentoId }]
   const afastamentosPorDia = useMemo(() => {
-    const map: Record<string, Array<{ bombeiroNome: string; sigla: string; cor: string }>> = {};
+    const map: Record<string, Array<{ bombeiroNome: string; sigla: string; cor: string; afastamentoId: number }>> = {};
     if (!afastamentosMes || !bombeiros) return map;
-
     for (const item of afastamentosMes) {
       const af = (item as any).afastamento;
       const bom = (item as any).bombeiro;
       if (!af || !bom) continue;
-
-      // Iterar cada dia do período do afastamento dentro do mês
       const inicio = new Date(af.dataInicio);
       const fim = new Date(af.dataFim);
       const mesInicio = new Date(year, month, 1);
       const mesFim = new Date(year, month + 1, 0);
-
       const start = inicio < mesInicio ? mesInicio : inicio;
       const end = fim > mesFim ? mesFim : fim;
-
       const cur = new Date(start);
       while (cur <= end) {
         const key = toDateStr(cur);
@@ -116,6 +149,7 @@ export default function Escalas() {
           bombeiroNome: bom.nome,
           sigla: af.tipo,
           cor: getSiglaColor(af.tipo),
+          afastamentoId: af.id,
         });
         cur.setDate(cur.getDate() + 1);
       }
@@ -152,6 +186,32 @@ export default function Escalas() {
     return counts;
   }, [calendarDays, equipeDataInicio]);
 
+  function handleCellClick(date: Date, e: React.MouseEvent) {
+    const dateStr = toDateStr(date);
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const scrollY = window.scrollY;
+    setPopover({ date, dateStr, x: rect.left, y: rect.bottom + scrollY });
+    setSelectedBombeiroId(null);
+    setSelectedSigla("");
+    setPeriodoConcessao("");
+  }
+
+  function handleSaveAfastamento() {
+    if (!selectedBombeiroId || !selectedSigla || !quartelId) {
+      toast.error("Selecione o bombeiro e a sigla");
+      return;
+    }
+    const dateStr = popover!.dateStr;
+    createAfastamento.mutate({
+      quartelId,
+      bombeiroId: selectedBombeiroId,
+      tipo: selectedSigla as any,
+      dataInicio: dateStr,
+      dataFim: dateStr,
+      descricao: selectedSigla === "FMO" && periodoConcessao ? `Período: ${periodoConcessao}` : undefined,
+    });
+  }
+
   if (loading || !quartelId) {
     return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="w-8 h-8 text-primary animate-spin" /></div>;
   }
@@ -172,7 +232,6 @@ export default function Escalas() {
               <ChevronRight className="w-4 h-4" />
             </Button>
           </div>
-
           {/* Legend */}
           <div className="flex items-center gap-3 flex-wrap">
             {CYCLE.map(eq => {
@@ -181,7 +240,7 @@ export default function Escalas() {
               const count = countByProntidao[eq] ?? 0;
               return (
                 <div key={eq} className="flex items-center gap-1.5">
-                  <div className="w-4 h-4 rounded-sm border-2" style={{ backgroundColor: c.badgeBg, borderColor: c.border }} />
+                  <div className="w-3 h-4 rounded-sm border-2" style={{ backgroundColor: c.badgeBg, borderColor: c.border }} />
                   <span className="text-xs text-muted-foreground font-medium">{shortName}</span>
                   {count > 0 && <span className="text-xs text-muted-foreground">({count} dias)</span>}
                 </div>
@@ -200,15 +259,12 @@ export default function Escalas() {
               </div>
             ))}
           </div>
-
           {/* Days */}
           <div className="grid grid-cols-7">
             {calendarDays.map(({ day, prontidao, date }, idx) => {
               const isToday = day !== null && date !== null &&
                 today.getDate() === day && today.getMonth() === month && today.getFullYear() === year;
-
               const colors = prontidao ? CYCLE_COLORS[prontidao] : null;
-
               // Verificar se há bombeiro desta prontidão ativo neste dia
               let hasBombeiroAtivo = false;
               if (date && prontidao && prontidao !== "Administrativo" && equipeDataInicio[prontidao]) {
@@ -220,9 +276,9 @@ export default function Escalas() {
                 );
                 hasBombeiroAtivo = dateOnly >= inicioOnly;
               }
-
               // Afastamentos deste dia
               const siglasDoDia = date ? (afastamentosPorDia[toDateStr(date)] ?? []) : [];
+              const isPopoverOpen = popover && date && toDateStr(date) === popover.dateStr;
 
               return (
                 <div
@@ -230,8 +286,11 @@ export default function Escalas() {
                   className={cn(
                     "min-h-[80px] border-b border-r border-border/40 last:border-r-0 flex flex-col items-center pt-2 px-1 pb-1 relative",
                     !day && "bg-secondary/5",
+                    day && "cursor-pointer hover:brightness-110 transition-all",
+                    isPopoverOpen && "ring-2 ring-primary ring-inset",
                   )}
                   style={hasBombeiroAtivo && colors ? { backgroundColor: colors.cellBg } : undefined}
+                  onClick={date && day ? (e) => handleCellClick(date, e) : undefined}
                 >
                   {day && colors && (
                     <>
@@ -247,7 +306,6 @@ export default function Escalas() {
                       >
                         {day}
                       </div>
-
                       {/* Siglas de afastamentos */}
                       {siglasDoDia.length > 0 && (
                         <div className="w-full mt-1 flex flex-wrap gap-0.5 justify-center">
@@ -278,10 +336,90 @@ export default function Escalas() {
           <span className="text-muted-foreground mt-0.5 flex-shrink-0 text-sm">ℹ</span>
           <p className="text-xs text-muted-foreground">
             Ciclo fixo: <strong style={{ color: CYCLE_COLORS["Prontidão Verde"].text }}>Verde</strong> → <strong style={{ color: CYCLE_COLORS["Prontidão Amarela"].text }}>Amarela</strong> → <strong style={{ color: CYCLE_COLORS["Prontidão Azul"].text }}>Azul</strong>, a partir de 01/Jan/2025.
-            O fundo colorido indica dias de serviço. As siglas de afastamentos aparecem dentro de cada célula.
+            Clique em qualquer dia para registrar um afastamento diretamente na célula.
           </p>
         </div>
       </div>
+
+      {/* Popover de edição direta na célula */}
+      {popover && (
+        <div
+          ref={popoverRef}
+          className="fixed z-50 bg-card border border-border rounded-xl shadow-2xl p-4 w-72"
+          style={{
+            top: Math.min(popover.y, window.innerHeight - 320),
+            left: Math.min(popover.x, window.innerWidth - 300),
+          }}
+        >
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-foreground">
+              Registrar afastamento — {popover.date.getDate().toString().padStart(2,"0")}/{(popover.date.getMonth()+1).toString().padStart(2,"0")}/{popover.date.getFullYear()}
+            </h3>
+            <button onClick={() => setPopover(null)} className="text-muted-foreground hover:text-foreground">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Seletor de bombeiro */}
+          <div className="mb-3">
+            <label className="text-xs text-muted-foreground mb-1 block">Bombeiro</label>
+            <select
+              className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground"
+              value={selectedBombeiroId ?? ""}
+              onChange={e => setSelectedBombeiroId(Number(e.target.value) || null)}
+            >
+              <option value="">Selecione...</option>
+              {bombeiros?.map(b => (
+                <option key={b.id} value={b.id}>{b.nome} ({b.equipe.replace("Prontidão ", "")})</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Seletor de sigla */}
+          <div className="mb-3">
+            <label className="text-xs text-muted-foreground mb-1 block">Sigla de afastamento</label>
+            <div className="grid grid-cols-5 gap-1">
+              {SIGLAS_AFASTAMENTO.map(s => (
+                <button
+                  key={s.sigla}
+                  title={s.label}
+                  onClick={() => setSelectedSigla(s.sigla)}
+                  className={cn(
+                    "rounded px-1.5 py-1 text-[10px] font-black transition-all border",
+                    s.cor,
+                    selectedSigla === s.sigla ? "ring-2 ring-white scale-110" : "opacity-70 hover:opacity-100"
+                  )}
+                >
+                  {s.sigla}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Campo período de concessão (apenas para FMO) */}
+          {selectedSigla === "FMO" && (
+            <div className="mb-3">
+              <label className="text-xs text-muted-foreground mb-1 block">Período de concessão (ex: 01FEV a 09FEV)</label>
+              <input
+                type="text"
+                className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground"
+                placeholder="Ex: 01FEV a 09FEV"
+                value={periodoConcessao}
+                onChange={e => setPeriodoConcessao(e.target.value)}
+              />
+            </div>
+          )}
+
+          <Button
+            size="sm"
+            className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
+            onClick={handleSaveAfastamento}
+            disabled={createAfastamento.isPending || !selectedBombeiroId || !selectedSigla}
+          >
+            {createAfastamento.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Registrar"}
+          </Button>
+        </div>
+      )}
     </AppLayout>
   );
 }

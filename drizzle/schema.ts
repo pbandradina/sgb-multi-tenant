@@ -67,7 +67,7 @@ export const bombeiros = mysqlTable("bombeiros", {
   nome: varchar("nome", { length: 200 }).notNull(),
   posto: varchar("posto", { length: 100 }).notNull(),
   equipe: mysqlEnum("equipe", ["Prontidão Verde", "Prontidão Azul", "Prontidão Amarela", "Administrativo"]).notNull(),
-  dataInicio: date("dataInicio").notNull(),
+  dataInicio: date("dataInicio", { mode: "string" }).notNull(),
   ativo: boolean("ativo").default(true).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
@@ -83,8 +83,8 @@ export const escalas = mysqlTable("escalas", {
   id: int("id").autoincrement().primaryKey(),
   quartelId: int("quartelId").notNull(),
   equipe: mysqlEnum("equipe", ["Prontidão Verde", "Prontidão Azul", "Prontidão Amarela", "Administrativo"]).notNull(),
-  dataInicio: date("dataInicio").notNull(),
-  dataFim: date("dataFim").notNull(),
+  dataInicio: date("dataInicio", { mode: "string" }).notNull(),
+  dataFim: date("dataFim", { mode: "string" }).notNull(),
   observacao: text("observacao"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
@@ -100,7 +100,7 @@ export const prontidoes = mysqlTable("prontidoes", {
   id: int("id").autoincrement().primaryKey(),
   quartelId: int("quartelId").notNull(),
   bombeiroId: int("bombeiroId").notNull(),
-  data: date("data").notNull(),
+  data: date("data", { mode: "string" }).notNull(),
   equipe: mysqlEnum("equipe", ["Prontidão Verde", "Prontidão Azul", "Prontidão Amarela", "Administrativo"]).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
@@ -117,8 +117,8 @@ export const bombeiroProntidaoHistorico = mysqlTable("bombeiro_prontidao_histori
   quartelId: int("quartelId").notNull(),
   bombeiroId: int("bombeiroId").notNull(),
   equipe: mysqlEnum("equipe", ["Prontidão Verde", "Prontidão Azul", "Prontidão Amarela", "Administrativo"]).notNull(),
-  dataInicio: date("dataInicio").notNull(),
-  dataFim: date("dataFim"),  // null = vigente até hoje
+  dataInicio: date("dataInicio", { mode: "string" }).notNull(),
+  dataFim: date("dataFim", { mode: "string" }),  // null = vigente até hoje
   observacao: text("observacao"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
@@ -134,8 +134,8 @@ export const afastamentos = mysqlTable("afastamentos", {
   quartelId: int("quartelId").notNull(),
   bombeiroId: int("bombeiroId").notNull(),
   tipo: mysqlEnum("tipo", ["F", "LP", "LT", "DS", "FMO", "PA", "D", "C", "LTS", "CFS", "CAS", "EAP", "TAF", "ME", "AG"]).notNull(),
-  dataInicio: date("dataInicio").notNull(),
-  dataFim: date("dataFim").notNull(),
+  dataInicio: date("dataInicio", { mode: "string" }).notNull(),
+  dataFim: date("dataFim", { mode: "string" }).notNull(),
   descricao: text("descricao"),
   periodoConcessao: varchar("periodoConcessao", { length: 100 }),  // Ex: "01/02/2026 a 03/02/2026"
   createdAt: timestamp("createdAt").defaultNow().notNull(),

@@ -167,11 +167,12 @@ export async function removeUserFromQuartel(userId: number, quartelId: number) {
 export async function getBombeirosByQuartel(quartelId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db
+  const result = await db
     .select()
     .from(bombeiros)
     .where(and(eq(bombeiros.quartelId, quartelId), eq(bombeiros.ativo, true)))
     .orderBy(bombeiros.equipe, bombeiros.nome);
+  return result;
 }
 
 export async function getBombeiroById(id: number, quartelId: number) {
@@ -188,7 +189,8 @@ export async function getBombeiroById(id: number, quartelId: number) {
 export async function createBombeiro(data: InsertBombeiro) {
   const db = await getDb();
   if (!db) throw new Error("DB unavailable");
-  const result = await db.insert(bombeiros).values(data);
+  const fixed = { ...data, dataInicio: fixDateString(data.dataInicio) as string };
+  const result = await db.insert(bombeiros).values(fixed);
   return result;
 }
 
@@ -314,6 +316,12 @@ export async function getAfastamentosAtivos(quartelId: number, hoje: string) {
 }
 
 export async function createAfastamento(data: InsertAfastamento) {
+  // Corrige offset de timezone antes de salvar
+  data = {
+    ...data,
+    dataInicio: fixDateString(data.dataInicio) as string,
+    dataFim: fixDateString(data.dataFim) as string,
+  };
   const db = await getDb();
   if (!db) throw new Error("DB unavailable");
   return db.insert(afastamentos).values(data);
@@ -351,6 +359,12 @@ export async function getHistoricoByQuartel(quartelId: number) {
 }
 
 export async function createHistorico(data: InsertBombeiroProntidaoHistorico) {
+  // Corrige offset de timezone antes de salvar
+  data = {
+    ...data,
+    dataInicio: fixDateString(data.dataInicio) as string,
+    dataFim: data.dataFim ? fixDateString(data.dataFim) as string : undefined,
+  };
   const db = await getDb();
   if (!db) throw new Error("DB unavailable");
   // Fechar o registro vigente anterior do mesmo bombeiro (sem dataFim)
@@ -440,6 +454,19 @@ function formatDateBR(date: Date): string {
   return `${d}/${m}/${y}`;
 }
 
+// Corrige o offset de timezone do MySQL: adiciona 1 dia à string YYYY-MM-DD
+// O driver mysql2 converte DATE para Date UTC, causando perda de 1 dia em GMT-3
+export function fixDateString(dateStr: string | null | undefined): string | null | undefined {
+  if (!dateStr) return dateStr;
+  // Recebe "YYYY-MM-DD", adiciona 1 dia para compensar a conversão UTC do driver
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const date = new Date(y, m - 1, d + 1); // +1 dia
+  const yy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const dd = String(date.getDate()).padStart(2, "0");
+  return `${yy}-${mm}-${dd}`;
+}
+
 // Parse de string "YYYY-MM-DD" para Date sem conversão de timezone
 export function parseDateLocal(str: string | Date): Date {
   if (str instanceof Date) {
@@ -490,10 +517,9 @@ export async function calcularSaldoFMO(bombeiroId: number, quartelId: number) {
     totalDiasServico = contarDiasCicloNoIntervalo(bombeiro.equipe, inicio, hoje);
   }
 
-  const totalFMOGeradas = Math.floor(totalDiasServico / 2);
-
-  // Gerar períodos de concessão: a cada 2 dias de serviço, 1 FMO é gerada
-  // Reconstruir a sequência de dias de serviço para identificar os pares
+  const totalFMOGeradas = Math.floor(totalDiasServico / 9);
+  // Gerar períodos de concessão: a cada 9 dias de serviço consecutivos, 1 FMO é gerada
+  // Reconstruir a sequência de dias de serviço para identificar os grupos de 9s
   const diasServico: Date[] = [];
 
   if (historico.length > 0) {
@@ -516,12 +542,12 @@ export async function calcularSaldoFMO(bombeiroId: number, quartelId: number) {
     }
   }
 
-  // Cada par de dias de serviço gera 1 FMO
+  // Cada grupo de 9 dias de serviço gera 1 FMO
   const periodosConcessao: Array<{ numero: number; dataInicio: string; dataFim: string; label: string }> = [];
-  for (let i = 0; i < diasServico.length - 1; i += 2) {
-    const num = Math.floor(i / 2) + 1;
+  for (let i = 0; i + 8 < diasServico.length; i += 9) {
+    const num = Math.floor(i / 9) + 1;
     const dInicio = diasServico[i];
-    const dFim = diasServico[i + 1];
+    const dFim = diasServico[i + 8];
     periodosConcessao.push({
       numero: num,
       dataInicio: formatDateBR(dInicio),

@@ -34,8 +34,8 @@ export default function Home() {
       {/* Header */}
       <header className="relative z-10 flex items-center justify-between px-8 py-6 border-b border-border/50">
         <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-10 h-10">
-            <img src="/manus-storage/brasao-20gb_96fbbfce.png" alt="Brasão 20º GB" className="w-10 h-10 object-contain" />
+          <div className="flex items-center justify-center w-20 h-20">
+            <img src="/manus-storage/brasao-20gb_96fbbfce.png" alt="Brasão 20º GB" className="w-20 h-20 object-contain" />
           </div>
           <div>
             <span className="text-lg font-bold text-foreground" style={{ fontFamily: "Montserrat, sans-serif" }}>SGB</span>
