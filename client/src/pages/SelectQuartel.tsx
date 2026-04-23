@@ -4,7 +4,7 @@ import { useQuartel } from "@/contexts/QuartelContext";
 import { trpc } from "@/lib/trpc";
 import { useEffect } from "react";
 import { useLocation } from "wouter";
-import { Flame, Building2, ChevronRight, Loader2, Plus } from "lucide-react";
+import { Building2, ChevronRight, Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -46,8 +46,8 @@ export default function SelectQuartel() {
       <div className="relative z-10 w-full max-w-md">
         {/* Logo */}
         <div className="flex flex-col items-center mb-10">
-          <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/20 border border-primary/30 mb-4">
-            <Flame className="w-9 h-9 text-primary" />
+          <div className="flex items-center justify-center w-20 h-20 mb-4">
+            <img src="/manus-storage/brasao-20gb_96fbbfce.png" alt="Brasão 20º GB" className="w-20 h-20 object-contain" />
           </div>
           <h1 className="text-2xl font-bold text-foreground" style={{ fontFamily: "Montserrat, sans-serif" }}>
             Selecionar Quartel

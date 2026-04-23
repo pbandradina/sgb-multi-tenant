@@ -2,7 +2,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
 import { useEffect } from "react";
 import { useLocation } from "wouter";
-import { Flame, Shield, Users, Calendar, BarChart3, ChevronRight, Loader2 } from "lucide-react";
+import { Shield, Users, Calendar, BarChart3, ChevronRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function Home() {
@@ -34,8 +34,8 @@ export default function Home() {
       {/* Header */}
       <header className="relative z-10 flex items-center justify-between px-8 py-6 border-b border-border/50">
         <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-primary/20 border border-primary/30">
-            <Flame className="w-6 h-6 text-primary" />
+          <div className="flex items-center justify-center w-10 h-10">
+            <img src="/manus-storage/brasao-20gb_96fbbfce.png" alt="Brasão 20º GB" className="w-10 h-10 object-contain" />
           </div>
           <div>
             <span className="text-lg font-bold text-foreground" style={{ fontFamily: "Montserrat, sans-serif" }}>SGB</span>

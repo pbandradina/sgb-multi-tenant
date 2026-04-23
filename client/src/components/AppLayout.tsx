@@ -11,7 +11,6 @@ import {
   Shield,
   LogOut,
   ChevronRight,
-  Flame,
   Building2,
   Menu,
   X,
@@ -76,8 +75,8 @@ export function AppLayout({ children, title }: AppLayoutProps) {
       >
         {/* Logo */}
         <div className="flex items-center gap-3 px-5 py-5 border-b border-border">
-          <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary/20 border border-primary/30">
-            <Flame className="w-5 h-5 text-primary" />
+          <div className="flex items-center justify-center w-10 h-10 rounded-lg overflow-hidden">
+            <img src="/manus-storage/brasao-20gb_96fbbfce.png" alt="Brasão 20º GB" className="w-10 h-10 object-contain" />
           </div>
           <div>
             <p className="text-sm font-bold text-foreground tracking-wide" style={{ fontFamily: "Montserrat, sans-serif" }}>SGB</p>
