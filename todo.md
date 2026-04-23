@@ -56,3 +56,8 @@
 
 ## Calendário Visual com Ciclo de Prontidões
 - [x] Exibir moldura colorida em cada dia do calendário conforme ciclo fixo (Verde→Amarela→Azul a partir de 01/Jan)
+
+## Melhorias Calendário Visual
+- [x] Remover texto de prontidão abaixo da moldura (reservar espaço para siglas de afastamentos)
+- [x] Colorir fundo da célula nos dias de serviço dos bombeiros cadastrados (cor fraca da prontidão)
+- [x] Respeitar data de início do bombeiro ao colorir células (não colorir dias anteriores ao início)
