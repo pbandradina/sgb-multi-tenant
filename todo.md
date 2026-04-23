@@ -53,3 +53,6 @@
 - [x] Reescrever calcularSaldoFMO: cruzar dias de escalas com histórico de vínculos do bombeiro (sem registro manual)
 - [x] Atualizar FolhasObrigatorias.tsx para mostrar dias de serviço calculados automaticamente
 - [x] Atualizar Dashboard para refletir novo cálculo
+
+## Calendário Visual com Ciclo de Prontidões
+- [x] Exibir moldura colorida em cada dia do calendário conforme ciclo fixo (Verde→Amarela→Azul a partir de 01/Jan)

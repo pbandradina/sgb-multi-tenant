@@ -400,36 +400,31 @@ export async function getEquipeBombeiroNaData(bombeiroId: number, quartelId: num
 }
 
 // ─── FMO (Folgas Mensais Obrigatórias) ───────────────────────────────────────────────
-// Regra: a cada 2 dias de serviço (escalas) o bombeiro tem direito a 1 FMO.
-// O cálculo é AUTOMÁTICO: cruza os dias de escala de cada prontidão com o
-// histórico de vínculos do bombeiro (bombeiro_prontidao_historico).
-// Se não houver histórico, usa a equipe atual do bombeiro desde dataInicio.
+// Regra: a cada 2 dias de serviço o bombeiro tem direito a 1 FMO.
+// O cálculo usa o CICLO FIXO de prontídões (Verde→Amarela→Azul, começando 01/Jan/2025=Verde)
+// cruzado com o histórico de vínculos do bombeiro.
 // Bombeiros da equipe Administrativo não entram no cálculo.
 
+// Ciclo fixo: índice 0=Verde, 1=Amarela, 2=Azul
+const CYCLE_EQUIPES = ["Prontidão Verde", "Prontidão Amarela", "Prontidão Azul"] as const;
+const CYCLE_REFERENCE_MS = new Date(2025, 0, 1).getTime(); // 01/Jan/2025
+
+function getProntidaoDoDiaServer(date: Date): string {
+  const target = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+  const diffDays = Math.round((target - CYCLE_REFERENCE_MS) / (1000 * 60 * 60 * 24));
+  const idx = ((diffDays % 3) + 3) % 3;
+  return CYCLE_EQUIPES[idx];
+}
+
 /**
- * Conta quantos dias de escala de uma prontidão específica caem dentro de um intervalo de datas.
- * Considera que as escalas podem ser por período (dataInicio a dataFim).
+ * Conta quantos dias do ciclo fixo de uma prontidão específica caem dentro de um intervalo de datas.
  */
-function contarDiasEscalaNoIntervalo(
-  escalasQuartel: Array<{ equipe: string; dataInicio: string | Date; dataFim: string | Date }>,
-  equipe: string,
-  periodoInicio: Date,
-  periodoFim: Date
-): number {
+function contarDiasCicloNoIntervalo(equipe: string, periodoInicio: Date, periodoFim: Date): number {
   let total = 0;
-  for (const escala of escalasQuartel) {
-    if (escala.equipe !== equipe) continue;
-    const escInicio = new Date(escala.dataInicio);
-    const escFim = new Date(escala.dataFim);
-    // Interseccão entre o período do vínculo e o período da escala
-    const inicio = escInicio > periodoInicio ? escInicio : periodoInicio;
-    const fim = escFim < periodoFim ? escFim : periodoFim;
-    if (inicio <= fim) {
-      // Contar dias no intervalo (inclusive)
-      const diffMs = fim.getTime() - inicio.getTime();
-      const dias = Math.floor(diffMs / (1000 * 60 * 60 * 24)) + 1;
-      total += dias;
-    }
+  const inicio = new Date(periodoInicio.getFullYear(), periodoInicio.getMonth(), periodoInicio.getDate());
+  const fim = new Date(periodoFim.getFullYear(), periodoFim.getMonth(), periodoFim.getDate());
+  for (let d = new Date(inicio); d <= fim; d.setDate(d.getDate() + 1)) {
+    if (getProntidaoDoDiaServer(d) === equipe) total++;
   }
   return total;
 }
@@ -448,19 +443,12 @@ export async function calcularSaldoFMO(bombeiroId: number, quartelId: number) {
   const bombeiro = bombeiroRows[0];
   if (!bombeiro) return { totalDiasServico: 0, totalFMOGeradas: 0, fmoUsadas: 0, saldoFMO: 0, elegivel: false };
 
-  // Verificar se o bombeiro é elegível (não é Administrativo)
-  // Verifica equipe atual - se for Administrativo sem histórico, não é elegível
+  // Buscar histórico de vínculos
   const historico = await db
     .select()
     .from(bombeiroProntidaoHistorico)
     .where(and(eq(bombeiroProntidaoHistorico.bombeiroId, bombeiroId), eq(bombeiroProntidaoHistorico.quartelId, quartelId)))
     .orderBy(bombeiroProntidaoHistorico.dataInicio);
-
-  // Buscar todas as escalas do quartel
-  const todasEscalas = await db
-    .select()
-    .from(escalas)
-    .where(eq(escalas.quartelId, quartelId));
 
   const hoje = new Date();
   hoje.setHours(23, 59, 59, 999);
@@ -468,12 +456,12 @@ export async function calcularSaldoFMO(bombeiroId: number, quartelId: number) {
   let totalDiasServico = 0;
 
   if (historico.length > 0) {
-    // Usar histórico de vínculos
+    // Usar histórico de vínculos: cada período contribui com os dias do ciclo da sua prontidão
     for (const vinculo of historico) {
-      if (vinculo.equipe === "Administrativo") continue; // Pular períodos administrativos
+      if (vinculo.equipe === "Administrativo") continue;
       const inicio = new Date(vinculo.dataInicio);
       const fim = vinculo.dataFim ? new Date(vinculo.dataFim) : hoje;
-      totalDiasServico += contarDiasEscalaNoIntervalo(todasEscalas as any, vinculo.equipe, inicio, fim);
+      totalDiasServico += contarDiasCicloNoIntervalo(vinculo.equipe, inicio, fim);
     }
   } else {
     // Sem histórico: usar equipe atual desde dataInicio do bombeiro
@@ -481,7 +469,7 @@ export async function calcularSaldoFMO(bombeiroId: number, quartelId: number) {
       return { totalDiasServico: 0, totalFMOGeradas: 0, fmoUsadas: 0, saldoFMO: 0, elegivel: false };
     }
     const inicio = new Date(bombeiro.dataInicio);
-    totalDiasServico = contarDiasEscalaNoIntervalo(todasEscalas as any, bombeiro.equipe, inicio, hoje);
+    totalDiasServico = contarDiasCicloNoIntervalo(bombeiro.equipe, inicio, hoje);
   }
 
   const totalFMOGeradas = Math.floor(totalDiasServico / 2);
