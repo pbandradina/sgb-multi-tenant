@@ -4,36 +4,45 @@ import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import { QuartelProvider } from "./contexts/QuartelContext";
 import Home from "./pages/Home";
+import SelectQuartel from "./pages/SelectQuartel";
+import Dashboard from "./pages/Dashboard";
+import Bombeiros from "./pages/Bombeiros";
+import Escalas from "./pages/Escalas";
+import Afastamentos from "./pages/Afastamentos";
+import FolhasObrigatorias from "./pages/FolhasObrigatorias";
+import Relatorios from "./pages/Relatorios";
+import AdminPanel from "./pages/AdminPanel";
 
 function Router() {
-  // make sure to consider if you need authentication for certain routes
   return (
     <Switch>
       <Route path={"/"} component={Home} />
+      <Route path={"/selecionar-quartel"} component={SelectQuartel} />
+      <Route path={"/dashboard"} component={Dashboard} />
+      <Route path={"/bombeiros"} component={Bombeiros} />
+      <Route path={"/escalas"} component={Escalas} />
+      <Route path={"/afastamentos"} component={Afastamentos} />
+      <Route path={"/fo"} component={FolhasObrigatorias} />
+      <Route path={"/relatorios"} component={Relatorios} />
+      <Route path={"/admin"} component={AdminPanel} />
       <Route path={"/404"} component={NotFound} />
-      {/* Final fallback route */}
       <Route component={NotFound} />
     </Switch>
   );
 }
 
-// NOTE: About Theme
-// - First choose a default theme according to your design style (dark or light bg), than change color palette in index.css
-//   to keep consistent foreground/background color across components
-// - If you want to make theme switchable, pass `switchable` ThemeProvider and use `useTheme` hook
-
 function App() {
   return (
     <ErrorBoundary>
-      <ThemeProvider
-        defaultTheme="light"
-        // switchable
-      >
-        <TooltipProvider>
-          <Toaster />
-          <Router />
-        </TooltipProvider>
+      <ThemeProvider defaultTheme="dark">
+        <QuartelProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Router />
+          </TooltipProvider>
+        </QuartelProvider>
       </ThemeProvider>
     </ErrorBoundary>
   );

@@ -1,0 +1,250 @@
+import { useAuth } from "@/_core/hooks/useAuth";
+import { getLoginUrl } from "@/const";
+import { useQuartel } from "@/contexts/QuartelContext";
+import { trpc } from "@/lib/trpc";
+import { useEffect } from "react";
+import { useLocation } from "wouter";
+import { AppLayout } from "@/components/AppLayout";
+import { TeamBadge } from "@/components/TeamBadge";
+import { Loader2, Users, Calendar, AlertTriangle, TrendingUp, Clock, UserX } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+
+export default function Dashboard() {
+  const { loading, isAuthenticated } = useAuth();
+  const { quartelId, quartelNome } = useQuartel();
+  const [, navigate] = useLocation();
+
+  useEffect(() => {
+    if (!loading && !isAuthenticated) {
+      window.location.href = getLoginUrl();
+      return;
+    }
+    if (!loading && isAuthenticated && !quartelId) {
+      navigate("/selecionar-quartel");
+    }
+  }, [loading, isAuthenticated, quartelId, navigate]);
+
+  const { data: bombeiros, isLoading: loadingBombeiros } = trpc.bombeiro.list.useQuery(
+    { quartelId: quartelId! },
+    { enabled: !!quartelId }
+  );
+
+  const { data: afastamentosAtivos, isLoading: loadingAfastamentos } = trpc.afastamento.listAtivos.useQuery(
+    { quartelId: quartelId! },
+    { enabled: !!quartelId }
+  );
+
+  const { data: saldosFO, isLoading: loadingFO } = trpc.fo.saldoQuartel.useQuery(
+    { quartelId: quartelId! },
+    { enabled: !!quartelId }
+  );
+
+  if (loading || !quartelId) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+      </div>
+    );
+  }
+
+  const totalBombeiros = bombeiros?.length || 0;
+  const porEquipe = { VD: 0, VA: 0, VB: 0, VC: 0 };
+  bombeiros?.forEach(b => { if (b.equipe in porEquipe) porEquipe[b.equipe as keyof typeof porEquipe]++; });
+
+  const totalAfastados = afastamentosAtivos?.length || 0;
+  const efetivoPresenteHoje = totalBombeiros - totalAfastados;
+
+  // Bombeiros com FO negativo (devendo FO)
+  const comFONegativo = saldosFO?.filter(s => s.saldo.saldoFO < 0) || [];
+  const comFOAlto = saldosFO?.filter(s => s.saldo.saldoFO >= 3) || [];
+
+  return (
+    <AppLayout title={`Dashboard — ${quartelNome}`}>
+      <div className="space-y-6">
+        {/* Stats cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card className="bg-card border-border">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total Efetivo</span>
+                <div className="w-8 h-8 rounded-lg bg-blue-500/15 flex items-center justify-center">
+                  <Users className="w-4 h-4 text-blue-400" />
+                </div>
+              </div>
+              <p className="text-3xl font-bold text-foreground" style={{ fontFamily: "Montserrat, sans-serif" }}>
+                {loadingBombeiros ? <Loader2 className="w-6 h-6 animate-spin" /> : totalBombeiros}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">bombeiros cadastrados</p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-card border-border">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Presentes Hoje</span>
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/15 flex items-center justify-center">
+                  <TrendingUp className="w-4 h-4 text-emerald-400" />
+                </div>
+              </div>
+              <p className="text-3xl font-bold text-foreground" style={{ fontFamily: "Montserrat, sans-serif" }}>
+                {loadingBombeiros || loadingAfastamentos ? <Loader2 className="w-6 h-6 animate-spin" /> : efetivoPresenteHoje}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">de {totalBombeiros} no efetivo</p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-card border-border">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Afastados</span>
+                <div className="w-8 h-8 rounded-lg bg-amber-500/15 flex items-center justify-center">
+                  <UserX className="w-4 h-4 text-amber-400" />
+                </div>
+              </div>
+              <p className="text-3xl font-bold text-foreground" style={{ fontFamily: "Montserrat, sans-serif" }}>
+                {loadingAfastamentos ? <Loader2 className="w-6 h-6 animate-spin" /> : totalAfastados}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">afastamentos ativos</p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-card border-border">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">FO Pendentes</span>
+                <div className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center">
+                  <Clock className="w-4 h-4 text-primary" />
+                </div>
+              </div>
+              <p className="text-3xl font-bold text-foreground" style={{ fontFamily: "Montserrat, sans-serif" }}>
+                {loadingFO ? <Loader2 className="w-6 h-6 animate-spin" /> : comFOAlto.length}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">bombeiros com FO ≥ 3</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Distribuição por equipe */}
+          <Card className="bg-card border-border">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-semibold text-foreground" style={{ fontFamily: "Montserrat, sans-serif" }}>
+                Distribuição por Equipe
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {(["VD", "VA", "VB", "VC"] as const).map(equipe => {
+                const count = porEquipe[equipe];
+                const pct = totalBombeiros > 0 ? Math.round((count / totalBombeiros) * 100) : 0;
+                return (
+                  <div key={equipe} className="flex items-center gap-3">
+                    <TeamBadge equipe={equipe} size="sm" className="w-10 justify-center" />
+                    <div className="flex-1">
+                      <div className="flex justify-between text-xs mb-1">
+                        <span className="text-muted-foreground">Viatura {equipe}</span>
+                        <span className="text-foreground font-medium">{count} bombeiros</span>
+                      </div>
+                      <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all duration-500"
+                          style={{
+                            width: `${pct}%`,
+                            backgroundColor: equipe === "VD" ? "#10b981" : equipe === "VA" ? "#3b82f6" : equipe === "VB" ? "#f59e0b" : "#ef4444"
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <span className="text-xs text-muted-foreground w-8 text-right">{pct}%</span>
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+
+          {/* Afastamentos ativos */}
+          <Card className="bg-card border-border">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-semibold text-foreground flex items-center gap-2" style={{ fontFamily: "Montserrat, sans-serif" }}>
+                <AlertTriangle className="w-4 h-4 text-amber-400" />
+                Afastamentos Ativos
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {loadingAfastamentos ? (
+                <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
+              ) : !afastamentosAtivos || afastamentosAtivos.length === 0 ? (
+                <div className="text-center py-6">
+                  <p className="text-sm text-muted-foreground">Nenhum afastamento ativo</p>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {afastamentosAtivos.map((item: any) => (
+                    <div key={item.afastamento.id} className="flex items-center justify-between py-2 border-b border-border/50 last:border-0">
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{item.bombeiro.nome}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {item.afastamento.tipo.replace(/_/g, " ")} · até{" "}
+                          {new Date(item.afastamento.dataFim).toLocaleDateString("pt-BR")}
+                        </p>
+                      </div>
+                      <TeamBadge equipe={item.bombeiro.equipe} size="sm" />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Saldos FO */}
+        <Card className="bg-card border-border">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-semibold text-foreground" style={{ fontFamily: "Montserrat, sans-serif" }}>
+              Saldo de Folgas Obrigatórias (FO)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loadingFO ? (
+              <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
+            ) : !saldosFO || saldosFO.length === 0 ? (
+              <div className="text-center py-6">
+                <p className="text-sm text-muted-foreground">Nenhum bombeiro cadastrado</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                {saldosFO.map(({ bombeiro, saldo }) => (
+                  <div
+                    key={bombeiro.id}
+                    className={`flex items-center justify-between p-3 rounded-lg border ${
+                      saldo.saldoFO >= 3
+                        ? "bg-amber-500/10 border-amber-500/30"
+                        : saldo.saldoFO < 0
+                        ? "bg-red-500/10 border-red-500/30"
+                        : "bg-secondary border-border"
+                    }`}
+                  >
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-foreground truncate">{bombeiro.nome}</p>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <TeamBadge equipe={bombeiro.equipe as any} size="sm" />
+                        <span className="text-xs text-muted-foreground">{bombeiro.posto}</span>
+                      </div>
+                    </div>
+                    <div className="text-right flex-shrink-0 ml-2">
+                      <p className={`text-lg font-bold ${saldo.saldoFO >= 3 ? "text-amber-400" : saldo.saldoFO < 0 ? "text-red-400" : "text-emerald-400"}`}
+                        style={{ fontFamily: "Montserrat, sans-serif" }}>
+                        {saldo.saldoFO >= 0 ? "+" : ""}{saldo.saldoFO}
+                      </p>
+                      <p className="text-xs text-muted-foreground">FO</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </AppLayout>
+  );
+}

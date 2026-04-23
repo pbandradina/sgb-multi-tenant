@@ -1,31 +1,106 @@
 import { useAuth } from "@/_core/hooks/useAuth";
-import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
 import { getLoginUrl } from "@/const";
-import { Streamdown } from 'streamdown';
+import { useEffect } from "react";
+import { useLocation } from "wouter";
+import { Flame, Shield, Users, Calendar, BarChart3, ChevronRight, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
-/**
- * All content in this page are only for example, replace with your own feature implementation
- * When building pages, remember your instructions in Frontend Workflow, Frontend Best Practices, Design Guide and Common Pitfalls
- */
 export default function Home() {
-  // The userAuth hooks provides authentication state
-  // To implement login/logout functionality, simply call logout() or redirect to getLoginUrl()
-  let { user, loading, error, isAuthenticated, logout } = useAuth();
+  const { user, loading, isAuthenticated } = useAuth();
+  const [, navigate] = useLocation();
 
-  // If theme is switchable in App.tsx, we can implement theme toggling like this:
-  // const { theme, toggleTheme } = useTheme();
+  useEffect(() => {
+    if (!loading && isAuthenticated) {
+      navigate("/selecionar-quartel");
+    }
+  }, [loading, isAuthenticated, navigate]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <main>
-        {/* Example: lucide-react for icons */}
-        <Loader2 className="animate-spin" />
-        Example Page
-        {/* Example: Streamdown for markdown rendering */}
-        <Streamdown>Any **markdown** content</Streamdown>
-        <Button variant="default">Example Button</Button>
+    <div className="min-h-screen bg-background flex flex-col">
+      {/* Background gradient */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
+        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
+      </div>
+
+      {/* Header */}
+      <header className="relative z-10 flex items-center justify-between px-8 py-6 border-b border-border/50">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-primary/20 border border-primary/30">
+            <Flame className="w-6 h-6 text-primary" />
+          </div>
+          <div>
+            <span className="text-lg font-bold text-foreground" style={{ fontFamily: "Montserrat, sans-serif" }}>SGB</span>
+            <span className="text-xs text-muted-foreground ml-2">Sistema de Gestão de Bombeiros</span>
+          </div>
+        </div>
+        <Button
+          onClick={() => window.location.href = getLoginUrl()}
+          variant="outline"
+          className="border-primary/40 text-primary hover:bg-primary/10"
+        >
+          Entrar
+        </Button>
+      </header>
+
+      {/* Hero */}
+      <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-8 py-16 text-center">
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-medium mb-8">
+          <Shield className="w-3.5 h-3.5" />
+          Plataforma Multi-Quartel
+        </div>
+
+        <h1 className="text-5xl md:text-6xl font-bold text-foreground mb-6 max-w-3xl leading-tight" style={{ fontFamily: "Montserrat, sans-serif" }}>
+          Gestão de Efetivo{" "}
+          <span className="text-primary">Inteligente</span>
+          {" "}para Bombeiros
+        </h1>
+
+        <p className="text-lg text-muted-foreground max-w-xl mb-10">
+          Controle escalas, prontidões, afastamentos e Folgas Obrigatórias de forma simples e eficiente. Cada quartel com seus dados isolados e seguros.
+        </p>
+
+        <Button
+          onClick={() => window.location.href = getLoginUrl()}
+          size="lg"
+          className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-6 text-base font-semibold rounded-xl shadow-lg shadow-primary/20"
+        >
+          Acessar o Sistema
+          <ChevronRight className="w-5 h-5 ml-2" />
+        </Button>
+
+        {/* Features */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-20 max-w-4xl w-full">
+          {[
+            { icon: Users, title: "Gestão de Efetivo", desc: "Cadastre e gerencie bombeiros por posto, graduação e equipe (VD, VA, VB, VC)" },
+            { icon: Calendar, title: "Escalas e Prontidões", desc: "Visualize escalas em calendário dinâmico e registre prontidões automaticamente" },
+            { icon: BarChart3, title: "Folgas Obrigatórias", desc: "Cálculo automático de saldo de FO baseado em prontidões e afastamentos" },
+          ].map((feature) => {
+            const Icon = feature.icon;
+            return (
+              <div key={feature.title} className="bg-card border border-border rounded-xl p-6 text-left hover:border-primary/30 transition-colors">
+                <div className="w-10 h-10 rounded-lg bg-primary/15 flex items-center justify-center mb-4">
+                  <Icon className="w-5 h-5 text-primary" />
+                </div>
+                <h3 className="font-semibold text-foreground mb-2" style={{ fontFamily: "Montserrat, sans-serif" }}>{feature.title}</h3>
+                <p className="text-sm text-muted-foreground">{feature.desc}</p>
+              </div>
+            );
+          })}
+        </div>
       </main>
+
+      <footer className="relative z-10 text-center py-6 border-t border-border/50">
+        <p className="text-xs text-muted-foreground">SGB — Sistema de Gestão de Bombeiros © {new Date().getFullYear()}</p>
+      </footer>
     </div>
   );
 }
