@@ -5,7 +5,6 @@ import { trpc } from "@/lib/trpc";
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { AppLayout } from "@/components/AppLayout";
-import { TeamBadge } from "@/components/TeamBadge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,22 +12,33 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Loader2, Plus, Trash2, Search, ClipboardList, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 
-const TIPOS_AFASTAMENTO = [
-  { value: "ferias", label: "Férias" },
-  { value: "licenca_medica", label: "Licença Médica" },
-  { value: "licenca_especial", label: "Licença Especial" },
-  { value: "dispensa_medica", label: "Dispensa Médica" },
-  { value: "licenca_maternidade", label: "Licença Maternidade" },
-  { value: "licenca_paternidade", label: "Licença Paternidade" },
-  { value: "outros", label: "Outros" },
-];
+// Siglas de afastamentos conforme sistema anterior
+export const SIGLAS_AFASTAMENTO = [
+  { sigla: "F",   label: "Férias",                    cor: "bg-orange-600 text-white" },
+  { sigla: "LP",  label: "Licença Prêmio",             cor: "bg-pink-600 text-white" },
+  { sigla: "LT",  label: "Luto",                       cor: "bg-gray-700 text-white" },
+  { sigla: "DS",  label: "Dispensa do Serviço",        cor: "bg-red-600 text-white" },
+  { sigla: "FMO", label: "Folga Mensal Obrigatória",   cor: "bg-purple-600 text-white" },
+  { sigla: "PA",  label: "Pausa Autorizada",           cor: "bg-slate-600 text-white" },
+  { sigla: "D",   label: "Doação de Sangue",           cor: "bg-rose-600 text-white" },
+  { sigla: "C",   label: "Convalescença",              cor: "bg-amber-600 text-white" },
+  { sigla: "LTS", label: "Licença Tratamento Saúde",   cor: "bg-indigo-600 text-white" },
+  { sigla: "CFS", label: "Curso Form. Sargentos",      cor: "bg-violet-600 text-white" },
+  { sigla: "CAS", label: "Curso Aperfeiçoamento",      cor: "bg-fuchsia-600 text-white" },
+  { sigla: "EAP", label: "Estágio Atualização",        cor: "bg-lime-600 text-white" },
+  { sigla: "TAF", label: "Teste Aptidão Física",       cor: "bg-emerald-600 text-white" },
+  { sigla: "EX",  label: "Expediente",                 cor: "bg-cyan-600 text-white" },
+  { sigla: "ME",  label: "Meio Expediente",            cor: "bg-sky-600 text-white" },
+  { sigla: "AG",  label: "Aglutinada",                 cor: "bg-teal-600 text-white" },
+] as const;
 
-function getTipoLabel(tipo: string) {
-  return TIPOS_AFASTAMENTO.find(t => t.value === tipo)?.label || tipo.replace(/_/g, " ");
+type TipoAfastamento = typeof SIGLAS_AFASTAMENTO[number]["sigla"];
+
+function getSiglaConfig(sigla: string) {
+  return SIGLAS_AFASTAMENTO.find(s => s.sigla === sigla) ?? { sigla, label: sigla, cor: "bg-slate-700 text-white" };
 }
 
 function isAtivo(dataFim: string | Date) {
@@ -87,7 +97,7 @@ export default function Afastamentos() {
     createMutation.mutate({
       quartelId: quartelId!,
       bombeiroId: parseInt(form.bombeiroId),
-      tipo: form.tipo as "ferias" | "licenca_medica" | "dispensa" | "outros",
+      tipo: form.tipo as TipoAfastamento,
       dataInicio: form.dataInicio,
       dataFim: form.dataFim,
       descricao: form.observacao || undefined,
@@ -144,6 +154,7 @@ export default function Afastamentos() {
                 <tbody>
                   {filtered.map((item: any) => {
                     const ativo = isAtivo(item.afastamento.dataFim);
+                    const config = getSiglaConfig(item.afastamento.tipo);
                     return (
                       <tr key={item.afastamento.id} className="border-b border-border/50 hover:bg-secondary/20 transition-colors">
                         <td className="px-4 py-3">
@@ -158,7 +169,12 @@ export default function Afastamentos() {
                           </div>
                         </td>
                         <td className="px-4 py-3">
-                          <span className="text-sm text-foreground">{getTipoLabel(item.afastamento.tipo)}</span>
+                          <div className="flex items-center gap-2">
+                            <span className={`inline-flex items-center justify-center w-9 h-7 rounded text-[11px] font-black ${config.cor}`}>
+                              {config.sigla}
+                            </span>
+                            <span className="text-xs text-muted-foreground">{config.label}</span>
+                          </div>
                         </td>
                         <td className="px-4 py-3">
                           <p className="text-sm text-foreground">
@@ -195,11 +211,28 @@ export default function Afastamentos() {
             </div>
           </Card>
         )}
+
+        {/* Legenda de siglas */}
+        <Card className="bg-card border-border">
+          <CardContent className="pt-4 pb-3">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Legenda de Siglas</p>
+            <div className="flex flex-wrap gap-2">
+              {SIGLAS_AFASTAMENTO.map(s => (
+                <div key={s.sigla} className="flex items-center gap-1.5">
+                  <span className={`inline-flex items-center justify-center w-9 h-6 rounded text-[10px] font-black ${s.cor}`}>
+                    {s.sigla}
+                  </span>
+                  <span className="text-xs text-muted-foreground">{s.label}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Add dialog */}
       <Dialog open={showAdd} onOpenChange={setShowAdd}>
-        <DialogContent className="bg-card border-border">
+        <DialogContent className="bg-card border-border max-w-lg">
           <DialogHeader>
             <DialogTitle style={{ fontFamily: "Montserrat, sans-serif" }}>Registrar Afastamento</DialogTitle>
           </DialogHeader>
@@ -226,7 +259,16 @@ export default function Afastamentos() {
                   <SelectValue placeholder="Selecione o tipo" />
                 </SelectTrigger>
                 <SelectContent>
-                  {TIPOS_AFASTAMENTO.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                  {SIGLAS_AFASTAMENTO.map(s => (
+                    <SelectItem key={s.sigla} value={s.sigla}>
+                      <div className="flex items-center gap-2">
+                        <span className={`inline-flex items-center justify-center w-9 h-6 rounded text-[10px] font-black ${s.cor}`}>
+                          {s.sigla}
+                        </span>
+                        <span>{s.label}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -242,32 +284,36 @@ export default function Afastamentos() {
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground uppercase tracking-wide">Observação</Label>
-              <Input value={form.observacao} onChange={e => setForm(f => ({ ...f, observacao: e.target.value }))} placeholder="Observações opcionais" className="bg-background border-border" />
+              <Input
+                placeholder="Opcional"
+                value={form.observacao}
+                onChange={e => setForm(f => ({ ...f, observacao: e.target.value }))}
+                className="bg-background border-border"
+              />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAdd(false)} className="border-border">Cancelar</Button>
-            <Button onClick={handleSubmit} disabled={createMutation.isPending} className="bg-primary hover:bg-primary/90 text-primary-foreground">
-              {createMutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-              Registrar
+            <Button variant="outline" onClick={() => setShowAdd(false)}>Cancelar</Button>
+            <Button onClick={handleSubmit} disabled={createMutation.isPending} className="bg-primary text-primary-foreground">
+              {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Registrar"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+      {/* Delete confirmation */}
+      <AlertDialog open={deleteId !== null} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent className="bg-card border-border">
           <AlertDialogHeader>
-            <AlertDialogTitle>Remover Afastamento</AlertDialogTitle>
-            <AlertDialogDescription>Deseja remover este registro de afastamento?</AlertDialogDescription>
+            <AlertDialogTitle>Remover afastamento?</AlertDialogTitle>
+            <AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="border-border">Cancelar</AlertDialogCancel>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => deleteId && deleteMutation.mutate({ id: deleteId, quartelId: quartelId! })}
               className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={() => deleteId !== null && deleteMutation.mutate({ id: deleteId, quartelId: quartelId! })}
             >
-              {deleteMutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
               Remover
             </AlertDialogAction>
           </AlertDialogFooter>

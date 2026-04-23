@@ -133,7 +133,7 @@ export const afastamentos = mysqlTable("afastamentos", {
   id: int("id").autoincrement().primaryKey(),
   quartelId: int("quartelId").notNull(),
   bombeiroId: int("bombeiroId").notNull(),
-  tipo: mysqlEnum("tipo", ["ferias", "licenca_medica", "dispensa", "outros"]).notNull(),
+  tipo: mysqlEnum("tipo", ["F", "LP", "LT", "DS", "FMO", "PA", "D", "C", "LTS", "CFS", "CAS", "EAP", "TAF", "EX", "ME", "AG"]).notNull(),
   dataInicio: date("dataInicio").notNull(),
   dataFim: date("dataFim").notNull(),
   descricao: text("descricao"),

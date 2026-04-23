@@ -273,14 +273,17 @@ export async function deleteProntidao(id: number, quartelId: number) {
 
 // ─── Afastamentos ─────────────────────────────────────────────────────────────
 
-export async function getAfastamentosByQuartel(quartelId: number) {
+export async function getAfastamentosByQuartel(quartelId: number, dataInicio?: string, dataFim?: string) {
   const db = await getDb();
   if (!db) return [];
+  const conditions = [eq(afastamentos.quartelId, quartelId)];
+  if (dataInicio) conditions.push(sql`${afastamentos.dataFim} >= ${dataInicio}`);
+  if (dataFim) conditions.push(sql`${afastamentos.dataInicio} <= ${dataFim}`);
   return db
     .select({ afastamento: afastamentos, bombeiro: bombeiros })
     .from(afastamentos)
     .innerJoin(bombeiros, eq(afastamentos.bombeiroId, bombeiros.id))
-    .where(eq(afastamentos.quartelId, quartelId))
+    .where(and(...conditions))
     .orderBy(desc(afastamentos.dataInicio));
 }
 
@@ -482,7 +485,7 @@ export async function calcularSaldoFMO(bombeiroId: number, quartelId: number) {
       and(
         eq(afastamentos.bombeiroId, bombeiroId),
         eq(afastamentos.quartelId, quartelId),
-        eq(afastamentos.tipo, "dispensa")
+        eq(afastamentos.tipo, "FMO")
       )
     );
 

@@ -61,3 +61,9 @@
 - [x] Remover texto de prontidão abaixo da moldura (reservar espaço para siglas de afastamentos)
 - [x] Colorir fundo da célula nos dias de serviço dos bombeiros cadastrados (cor fraca da prontidão)
 - [x] Respeitar data de início do bombeiro ao colorir células (não colorir dias anteriores ao início)
+
+## Siglas de Afastamentos
+- [x] Atualizar enum de tipos no schema para siglas corretas (F, LP, LT, DS, FMO, PA, D, C, LTS, CFS, CAS, EAP, TAF, EX, ME, AG)
+- [x] Atualizar router de afastamentos com novos tipos/siglas
+- [x] Atualizar tela de Afastamentos com seletor de siglas e cores
+- [ ] Exibir siglas de afastamentos nas células do calendário (próxima etapa)

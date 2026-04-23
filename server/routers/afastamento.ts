@@ -9,8 +9,15 @@ import {
   deleteAfastamento,
   getUserQuartelRole,
   getBombeirosByQuartel,
-  calcularSaldoFO,
+  calcularSaldoFMO,
 } from "../db";
+
+// Siglas de afastamentos conforme sistema anterior
+export const TIPOS_AFASTAMENTO = [
+  "F", "LP", "LT", "DS", "FMO", "PA", "D", "C", "LTS", "CFS", "CAS", "EAP", "TAF", "EX", "ME", "AG"
+] as const;
+
+export type TipoAfastamento = typeof TIPOS_AFASTAMENTO[number];
 
 async function assertQuartelAccess(userId: number, quartelId: number) {
   const rel = await getUserQuartelRole(userId, quartelId);
@@ -41,11 +48,26 @@ export const afastamentoRouter = router({
       return getAfastamentosAtivos(input.quartelId, hoje);
     }),
 
+  // Buscar afastamentos por mês para exibir no calendário
+  listByMes: protectedProcedure
+    .input(z.object({
+      quartelId: z.number(),
+      ano: z.number(),
+      mes: z.number(), // 1-12
+    }))
+    .query(async ({ ctx, input }) => {
+      if (ctx.user.role !== "admin") await assertQuartelAccess(ctx.user.id, input.quartelId);
+      const dataInicio = `${input.ano}-${String(input.mes).padStart(2, "0")}-01`;
+      const ultimoDia = new Date(input.ano, input.mes, 0).getDate();
+      const dataFim = `${input.ano}-${String(input.mes).padStart(2, "0")}-${ultimoDia}`;
+      return getAfastamentosByQuartel(input.quartelId, dataInicio, dataFim);
+    }),
+
   create: protectedProcedure
     .input(z.object({
       quartelId: z.number(),
       bombeiroId: z.number(),
-      tipo: z.enum(["ferias", "licenca_medica", "dispensa", "outros"]),
+      tipo: z.enum(TIPOS_AFASTAMENTO),
       dataInicio: z.string(),
       dataFim: z.string(),
       descricao: z.string().optional(),
@@ -73,15 +95,15 @@ export const afastamentoRouter = router({
 });
 
 export const foRouter = router({
-  // Saldo de FO de um bombeiro específico
+  // Saldo de FMO de um bombeiro específico
   saldoBombeiro: protectedProcedure
     .input(z.object({ bombeiroId: z.number(), quartelId: z.number() }))
     .query(async ({ ctx, input }) => {
       if (ctx.user.role !== "admin") await assertQuartelAccess(ctx.user.id, input.quartelId);
-      return calcularSaldoFO(input.bombeiroId, input.quartelId);
+      return calcularSaldoFMO(input.bombeiroId, input.quartelId);
     }),
 
-  // Saldo de FO de todos os bombeiros do quartel
+  // Saldo de FMO de todos os bombeiros do quartel
   saldoQuartel: protectedProcedure
     .input(z.object({ quartelId: z.number() }))
     .query(async ({ ctx, input }) => {
@@ -90,13 +112,13 @@ export const foRouter = router({
       const saldos = await Promise.all(
         bombeiros.map(async (b) => ({
           bombeiro: b,
-          saldo: await calcularSaldoFO(b.id, input.quartelId),
+          saldo: await calcularSaldoFMO(b.id, input.quartelId),
         }))
       );
       return saldos;
     }),
 
-  // Relatório de FO por período e equipe
+  // Relatório de FMO por período e equipe
   relatorio: protectedProcedure
     .input(z.object({
       quartelId: z.number(),
@@ -113,7 +135,7 @@ export const foRouter = router({
       const relatorio = await Promise.all(
         bombeiros.map(async (b) => ({
           bombeiro: b,
-          saldo: await calcularSaldoFO(b.id, input.quartelId),
+          saldo: await calcularSaldoFMO(b.id, input.quartelId),
         }))
       );
       return relatorio;

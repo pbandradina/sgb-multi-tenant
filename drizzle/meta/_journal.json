@@ -29,6 +29,13 @@
       "when": 1776952262144,
       "tag": "0003_messy_blacklash",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1776955459793,
+      "tag": "0004_worthless_pride",
+      "breakpoints": true
     }
   ]
 }
