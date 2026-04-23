@@ -12,8 +12,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Card, CardContent } from "@/components/ui/card";
-import { Loader2, Plus, Trash2, Search, Users, UserCheck } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Loader2, Plus, Trash2, Search, Users, UserCheck, CalendarRange, History, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 
 const POSTOS = [
@@ -31,6 +32,14 @@ export default function Bombeiros() {
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [form, setForm] = useState({ nome: "", posto: "", equipe: "", dataInicio: "" });
 
+  // Aplicar Código a Período
+  const [showAplicarCodigo, setShowAplicarCodigo] = useState(false);
+  const [selectedBombeiro, setSelectedBombeiro] = useState<{ id: number; nome: string; equipe: string } | null>(null);
+  const [codigoForm, setCodigoForm] = useState({ equipe: "Prontidão Azul" as Equipe, dataInicio: "", dataFim: "", observacao: "" });
+
+  // Histórico expandido
+  const [expandedHistorico, setExpandedHistorico] = useState<number | null>(null);
+
   useEffect(() => {
     if (!loading && !isAuthenticated) { window.location.href = getLoginUrl(); return; }
     if (!loading && isAuthenticated && !quartelId) navigate("/selecionar-quartel");
@@ -39,6 +48,12 @@ export default function Bombeiros() {
   const utils = trpc.useUtils();
   const { data: bombeiros, isLoading } = trpc.bombeiro.list.useQuery(
     { quartelId: quartelId! }, { enabled: !!quartelId }
+  );
+
+  // Histórico do bombeiro selecionado
+  const { data: historicoBombeiro, isLoading: loadingHistorico } = trpc.historico.listByBombeiro.useQuery(
+    { bombeiroId: expandedHistorico!, quartelId: quartelId! },
+    { enabled: !!expandedHistorico && !!quartelId }
   );
 
   const createMutation = trpc.bombeiro.create.useMutation({
@@ -56,6 +71,26 @@ export default function Bombeiros() {
       utils.bombeiro.list.invalidate();
       setDeleteId(null);
       toast.success("Bombeiro removido.");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const aplicarCodigoMutation = trpc.historico.create.useMutation({
+    onSuccess: () => {
+      utils.bombeiro.list.invalidate();
+      utils.historico.listByBombeiro.invalidate();
+      setShowAplicarCodigo(false);
+      setSelectedBombeiro(null);
+      setCodigoForm({ equipe: "Prontidão Azul", dataInicio: "", dataFim: "", observacao: "" });
+      toast.success("Código aplicado com sucesso! Vínculo de prontidão atualizado.");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const deleteHistoricoMutation = trpc.historico.delete.useMutation({
+    onSuccess: () => {
+      utils.historico.listByBombeiro.invalidate();
+      toast.success("Registro removido.");
     },
     onError: (e) => toast.error(e.message),
   });
@@ -79,6 +114,27 @@ export default function Bombeiros() {
       equipe: form.equipe as Equipe,
       dataInicio: form.dataInicio,
     });
+  };
+
+  const handleAplicarCodigo = () => {
+    if (!selectedBombeiro || !codigoForm.equipe || !codigoForm.dataInicio) {
+      toast.error("Preencha a prontidão e a data de início.");
+      return;
+    }
+    aplicarCodigoMutation.mutate({
+      quartelId: quartelId!,
+      bombeiroId: selectedBombeiro.id,
+      equipe: codigoForm.equipe,
+      dataInicio: codigoForm.dataInicio,
+      dataFim: codigoForm.dataFim || undefined,
+      observacao: codigoForm.observacao || undefined,
+    });
+  };
+
+  const openAplicarCodigo = (b: { id: number; nome: string; equipe: string }) => {
+    setSelectedBombeiro(b);
+    setCodigoForm({ equipe: b.equipe as Equipe, dataInicio: "", dataFim: "", observacao: "" });
+    setShowAplicarCodigo(true);
   };
 
   if (loading || !quartelId) {
@@ -149,38 +205,102 @@ export default function Bombeiros() {
                   <tr className="border-b border-border bg-secondary/30">
                     <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Nome</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Posto/Graduação</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Equipe</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Data de Início</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Prontidão Atual</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Desde</th>
                     <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filtered.map((b, i) => (
-                    <tr key={b.id} className={`border-b border-border/50 hover:bg-secondary/20 transition-colors ${i % 2 === 0 ? "" : "bg-secondary/5"}`}>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center flex-shrink-0">
-                            <span className="text-xs font-bold text-primary">{b.nome.charAt(0)}</span>
+                    <>
+                      <tr key={b.id} className={`border-b border-border/50 hover:bg-secondary/20 transition-colors ${i % 2 === 0 ? "" : "bg-secondary/5"}`}>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center flex-shrink-0">
+                              <span className="text-xs font-bold text-primary">{b.nome.charAt(0)}</span>
+                            </div>
+                            <span className="text-sm font-medium text-foreground">{b.nome}</span>
                           </div>
-                          <span className="text-sm font-medium text-foreground">{b.nome}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-muted-foreground">{b.posto}</td>
-                      <td className="px-4 py-3"><TeamBadge equipe={b.equipe as Equipe} size="sm" /></td>
-                      <td className="px-4 py-3 text-sm text-muted-foreground">
-                        {new Date(b.dataInicio).toLocaleDateString("pt-BR")}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setDeleteId(b.id)}
-                          className="text-muted-foreground hover:text-red-400 hover:bg-red-400/10"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </td>
-                    </tr>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-muted-foreground">{b.posto}</td>
+                        <td className="px-4 py-3"><TeamBadge equipe={b.equipe as Equipe} size="sm" /></td>
+                        <td className="px-4 py-3 text-sm text-muted-foreground">
+                          {new Date(b.dataInicio).toLocaleDateString("pt-BR")}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openAplicarCodigo(b)}
+                              className="text-muted-foreground hover:text-blue-400 hover:bg-blue-400/10"
+                              title="Aplicar Código a Período"
+                            >
+                              <CalendarRange className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setExpandedHistorico(expandedHistorico === b.id ? null : b.id)}
+                              className="text-muted-foreground hover:text-amber-400 hover:bg-amber-400/10"
+                              title="Ver Histórico"
+                            >
+                              <History className="w-4 h-4" />
+                              {expandedHistorico === b.id ? <ChevronUp className="w-3 h-3 ml-0.5" /> : <ChevronDown className="w-3 h-3 ml-0.5" />}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setDeleteId(b.id)}
+                              className="text-muted-foreground hover:text-red-400 hover:bg-red-400/10"
+                              title="Remover"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                      {/* Histórico expandido */}
+                      {expandedHistorico === b.id && (
+                        <tr key={`hist-${b.id}`} className="bg-secondary/10">
+                          <td colSpan={5} className="px-6 py-3">
+                            <div className="space-y-2">
+                              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                                <History className="w-3.5 h-3.5" /> Histórico de Vínculos de Prontidão
+                              </p>
+                              {loadingHistorico ? (
+                                <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                              ) : !historicoBombeiro || historicoBombeiro.length === 0 ? (
+                                <p className="text-xs text-muted-foreground italic">Nenhum vínculo registrado. Use "Aplicar Código a Período" para registrar.</p>
+                              ) : (
+                                <div className="space-y-1.5">
+                                  {historicoBombeiro.map((h: any) => (
+                                    <div key={h.id} className="flex items-center justify-between bg-card rounded-lg px-3 py-2 border border-border/50">
+                                      <div className="flex items-center gap-3">
+                                        <TeamBadge equipe={h.equipe as Equipe} size="sm" />
+                                        <span className="text-xs text-muted-foreground">
+                                          {new Date(h.dataInicio).toLocaleDateString("pt-BR")} →{" "}
+                                          {h.dataFim ? new Date(h.dataFim).toLocaleDateString("pt-BR") : <span className="text-emerald-400 font-medium">Vigente</span>}
+                                        </span>
+                                        {h.observacao && <span className="text-xs text-muted-foreground italic">· {h.observacao}</span>}
+                                      </div>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => deleteHistoricoMutation.mutate({ id: h.id, quartelId: quartelId! })}
+                                        className="text-muted-foreground hover:text-red-400 hover:bg-red-400/10 h-7 w-7 p-0"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </Button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </>
                   ))}
                 </tbody>
               </table>
@@ -188,6 +308,83 @@ export default function Bombeiros() {
           </Card>
         )}
       </div>
+
+      {/* Aplicar Código a Período */}
+      <Dialog open={showAplicarCodigo} onOpenChange={(open) => { if (!open) { setShowAplicarCodigo(false); setSelectedBombeiro(null); } }}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle style={{ fontFamily: "Montserrat, sans-serif" }}>
+              Aplicar Código a Período
+            </DialogTitle>
+            {selectedBombeiro && (
+              <p className="text-sm text-muted-foreground">
+                Bombeiro: <span className="font-medium text-foreground">{selectedBombeiro.nome}</span>
+              </p>
+            )}
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground uppercase tracking-wide">Prontidão / Código *</Label>
+              <Select value={codigoForm.equipe} onValueChange={v => setCodigoForm(f => ({ ...f, equipe: v as Equipe }))}>
+                <SelectTrigger className="bg-background border-border">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {EQUIPES.map(e => (
+                    <SelectItem key={e} value={e}>{e}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground uppercase tracking-wide">Data Início *</Label>
+                <Input
+                  type="date"
+                  value={codigoForm.dataInicio}
+                  onChange={e => setCodigoForm(f => ({ ...f, dataInicio: e.target.value }))}
+                  className="bg-background border-border"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground uppercase tracking-wide">Data Fim (opcional)</Label>
+                <Input
+                  type="date"
+                  value={codigoForm.dataFim}
+                  onChange={e => setCodigoForm(f => ({ ...f, dataFim: e.target.value }))}
+                  className="bg-background border-border"
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground uppercase tracking-wide">Observação (opcional)</Label>
+              <Input
+                value={codigoForm.observacao}
+                onChange={e => setCodigoForm(f => ({ ...f, observacao: e.target.value }))}
+                placeholder="Ex: Transferência temporária"
+                className="bg-background border-border"
+              />
+            </div>
+            <div className="bg-secondary/30 rounded-lg p-3 text-xs text-muted-foreground">
+              <p className="font-medium text-foreground mb-1">ℹ️ Como funciona</p>
+              <p>Ao aplicar, o vínculo anterior (sem data fim) será automaticamente encerrado na data de início informada. O cálculo de FMO usará o histórico de vínculos para determinar quais dias contam para cada bombeiro.</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowAplicarCodigo(false); setSelectedBombeiro(null); }} className="border-border">
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleAplicarCodigo}
+              disabled={aplicarCodigoMutation.isPending}
+              className="bg-primary hover:bg-primary/90 text-primary-foreground"
+            >
+              {aplicarCodigoMutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+              Aplicar Código
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Add dialog */}
       <Dialog open={showAdd} onOpenChange={setShowAdd}>

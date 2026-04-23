@@ -8,6 +8,7 @@ import { escalaRouter } from "./routers/escala";
 import { prontidaoRouter } from "./routers/prontidao";
 import { afastamentoRouter, foRouter } from "./routers/afastamento";
 import { adminRouter } from "./routers/admin";
+import { historicoRouter } from "./routers/historico";
 
 export const appRouter = router({
   system: systemRouter,
@@ -26,6 +27,7 @@ export const appRouter = router({
   afastamento: afastamentoRouter,
   fo: foRouter,
   admin: adminRouter,
+  historico: historicoRouter,
 });
 
 export type AppRouter = typeof appRouter;

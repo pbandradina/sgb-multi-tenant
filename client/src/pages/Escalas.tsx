@@ -12,7 +12,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { Loader2, ChevronLeft, ChevronRight, Plus, Trash2 } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -25,6 +26,7 @@ export default function Escalas() {
   const [, navigate] = useLocation();
   const [currentDate, setCurrentDate] = useState(() => new Date());
   const [showAdd, setShowAdd] = useState(false);
+  const [deleteId, setDeleteId] = useState<number | null>(null);
   const [form, setForm] = useState({ equipe: "Prontidão Verde" as Equipe, dataInicio: "", dataFim: "", turno: "24h" });
 
   useEffect(() => {
@@ -44,6 +46,15 @@ export default function Escalas() {
   );
 
   const utils = trpc.useUtils();
+  const deleteMutation = trpc.escala.delete.useMutation({
+    onSuccess: () => {
+      utils.escala.list.invalidate();
+      setDeleteId(null);
+      toast.success("Escala removida com sucesso!");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
   const createMutation = trpc.escala.create.useMutation({
     onSuccess: () => {
       utils.escala.list.invalidate();
@@ -223,6 +234,14 @@ export default function Escalas() {
                         </p>
                       </div>
                     </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setDeleteId(e.id)}
+                      className="text-muted-foreground hover:text-red-400 hover:bg-red-400/10 flex-shrink-0"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
                   </div>
                 ))}
               </div>
@@ -230,6 +249,29 @@ export default function Escalas() {
           </Card>
         )}
       </div>
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={deleteId !== null} onOpenChange={(open) => { if (!open) setDeleteId(null); }}>
+        <AlertDialogContent className="bg-card border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle style={{ fontFamily: "Montserrat, sans-serif" }}>Excluir Escala</AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground">
+              Tem certeza que deseja excluir esta escala? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-border">Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteId && deleteMutation.mutate({ id: deleteId, quartelId: quartelId! })}
+              disabled={deleteMutation.isPending}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {deleteMutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Add dialog */}
       <Dialog open={showAdd} onOpenChange={setShowAdd}>

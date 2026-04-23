@@ -40,3 +40,16 @@
 - [x] Renomear equipes: VD → Prontidão Verde, VA → Prontidão Azul, VB → Prontidão Amarela, VC → Administrativo (schema, backend, frontend)
 - [x] Renomear FO → FMO (Folga Mensal Obrigatória) em todo o sistema
 - [x] Excluir bombeiros da equipe Administrativo do cálculo de FMO
+- [x] Adicionar botão de exclusão de escalas na página de Escalas de Serviço
+
+## Refactor: Sistema de Escalas e FMO por Período
+- [x] Criar tabela bombeiro_prontidao_historico (bombeiro, prontidão, data_inicio, data_fim)
+- [x] Atualizar backend: routers e db.ts para histórico de vínculos e cálculo de FMO por período
+- [x] Adicionar botão 'Aplicar Código a Período' na tela de Bombeiros
+- [x] Atualizar calendário de escalas: cada dia pertence a uma prontidão
+- [x] Atualizar tela de FMO e Dashboard para usar novo cálculo
+
+## Cálculo Automático de FMO
+- [x] Reescrever calcularSaldoFMO: cruzar dias de escalas com histórico de vínculos do bombeiro (sem registro manual)
+- [x] Atualizar FolhasObrigatorias.tsx para mostrar dias de serviço calculados automaticamente
+- [x] Atualizar Dashboard para refletir novo cálculo

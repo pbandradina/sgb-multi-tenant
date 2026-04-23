@@ -109,6 +109,24 @@ export type Prontidao = typeof prontidoes.$inferSelect;
 export type InsertProntidao = typeof prontidoes.$inferInsert;
 
 /**
+ * Histórico de vínculos bombeiro-prontidão por período
+ * Permite rastrear mudanças de prontidão ao longo do ano
+ */
+export const bombeiroProntidaoHistorico = mysqlTable("bombeiro_prontidao_historico", {
+  id: int("id").autoincrement().primaryKey(),
+  quartelId: int("quartelId").notNull(),
+  bombeiroId: int("bombeiroId").notNull(),
+  equipe: mysqlEnum("equipe", ["Prontidão Verde", "Prontidão Azul", "Prontidão Amarela", "Administrativo"]).notNull(),
+  dataInicio: date("dataInicio").notNull(),
+  dataFim: date("dataFim"),  // null = vigente até hoje
+  observacao: text("observacao"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type BombeiroProntidaoHistorico = typeof bombeiroProntidaoHistorico.$inferSelect;
+export type InsertBombeiroProntidaoHistorico = typeof bombeiroProntidaoHistorico.$inferInsert;
+
+/**
  * Afastamentos - férias, licenças, dispensas médicas por bombeiro
  */
 export const afastamentos = mysqlTable("afastamentos", {

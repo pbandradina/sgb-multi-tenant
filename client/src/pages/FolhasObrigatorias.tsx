@@ -8,11 +8,9 @@ import { AppLayout } from "@/components/AppLayout";
 import { TeamBadge, EQUIPES_PRONTIDAO, type Equipe } from "@/components/TeamBadge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
-import { Loader2, Plus, Search, TrendingUp, TrendingDown, Minus, Info } from "lucide-react";
+import { Loader2, Search, TrendingUp, TrendingDown, Minus, Info, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -22,8 +20,6 @@ export default function FolhasObrigatorias() {
   const [, navigate] = useLocation();
   const [search, setSearch] = useState("");
   const [filterEquipe, setFilterEquipe] = useState("todas");
-  const [showAddProntidao, setShowAddProntidao] = useState(false);
-  const [formProntidao, setFormProntidao] = useState({ bombeiroId: "", data: "", equipe: "Prontidão Verde" as Equipe });
 
   useEffect(() => {
     if (!loading && !isAuthenticated) { window.location.href = getLoginUrl(); return; }
@@ -31,44 +27,19 @@ export default function FolhasObrigatorias() {
   }, [loading, isAuthenticated, quartelId]);
 
   const utils = trpc.useUtils();
-  const { data: bombeiros } = trpc.bombeiro.list.useQuery({ quartelId: quartelId! }, { enabled: !!quartelId });
-  const { data: saldos, isLoading } = trpc.fo.saldoQuartel.useQuery({ quartelId: quartelId! }, { enabled: !!quartelId });
+  const { data: saldos, isLoading, refetch } = trpc.fo.saldoQuartel.useQuery(
+    { quartelId: quartelId! },
+    { enabled: !!quartelId }
+  );
 
-  const createProntidao = trpc.prontidao.create.useMutation({
-    onSuccess: () => {
-      utils.fo.saldoQuartel.invalidate();
-      setShowAddProntidao(false);
-      setFormProntidao({ bombeiroId: "", data: "", equipe: "Prontidão Verde" });
-      toast.success("Prontidão registrada com sucesso!");
-    },
-    onError: (e) => toast.error(e.message),
-  });
-
-  // Apenas bombeiros elegíveis para FMO (não Administrativo)
-  const bombeirosElegiveis = (bombeiros || []).filter(b => b.equipe !== "Administrativo");
-
+  // Apenas bombeiros elegíveis (não Administrativo)
   const filtered = (saldos || []).filter((item: any) => {
-    // Excluir bombeiros Administrativos da listagem de FMO
-    if (item.bombeiro?.equipe === "Administrativo") return false;
+    if (!item.saldo?.elegivel) return false;
     const nome = item.bombeiro?.nome?.toLowerCase() || "";
     const matchSearch = nome.includes(search.toLowerCase());
     const matchEquipe = filterEquipe === "todas" || item.bombeiro?.equipe === filterEquipe;
     return matchSearch && matchEquipe;
   });
-
-  const handleSubmitProntidao = () => {
-    if (!formProntidao.bombeiroId || !formProntidao.data) {
-      toast.error("Preencha todos os campos obrigatórios.");
-      return;
-    }
-    const selectedBombeiro = (bombeiros || []).find(b => b.id === parseInt(formProntidao.bombeiroId));
-    createProntidao.mutate({
-      quartelId: quartelId!,
-      bombeiroId: parseInt(formProntidao.bombeiroId),
-      data: formProntidao.data,
-      equipe: (selectedBombeiro?.equipe || formProntidao.equipe) as Equipe,
-    });
-  };
 
   const getSaldoColor = (saldo: number) => {
     if (saldo > 0) return "text-emerald-400";
@@ -130,7 +101,7 @@ export default function FolhasObrigatorias() {
           </Card>
         </div>
 
-        {/* Filters and actions */}
+        {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
           <div className="flex gap-3 flex-1">
             <div className="relative flex-1 max-w-sm">
@@ -154,9 +125,13 @@ export default function FolhasObrigatorias() {
               </SelectContent>
             </Select>
           </div>
-          <Button onClick={() => setShowAddProntidao(true)} className="bg-primary hover:bg-primary/90 text-primary-foreground">
-            <Plus className="w-4 h-4 mr-2" />
-            Registrar Prontidão
+          <Button
+            variant="outline"
+            onClick={() => { refetch(); toast.info("Atualizando saldos..."); }}
+            className="border-border text-muted-foreground hover:text-foreground"
+          >
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Atualizar
           </Button>
         </div>
 
@@ -164,9 +139,10 @@ export default function FolhasObrigatorias() {
         <div className="flex items-start gap-2 p-3 rounded-lg bg-secondary/30 border border-border">
           <Info className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
           <p className="text-xs text-muted-foreground">
-            O saldo de FMO é calculado automaticamente com base nas prontidões realizadas. A cada 2 prontidões, o bombeiro
-            tem direito a 1 FMO. Apenas bombeiros das prontidões <strong>Verde, Azul e Amarela</strong> são elegíveis.
-            Bombeiros do setor Administrativo não entram neste cálculo.
+            O saldo de FMO é calculado <strong>automaticamente</strong> com base nos dias de escala de cada prontidão
+            e no histórico de vínculo do bombeiro. A cada <strong>2 dias de serviço</strong>, o bombeiro tem direito a 1 FMO.
+            Apenas bombeiros das prontidões <strong>Verde, Azul e Amarela</strong> são elegíveis.
+            Para registrar mudança de prontidão, use o botão <strong>"Aplicar Código a Período"</strong> na tela de Bombeiros.
           </p>
         </div>
 
@@ -176,7 +152,11 @@ export default function FolhasObrigatorias() {
         ) : filtered.length === 0 ? (
           <Card className="bg-card border-border">
             <CardContent className="flex flex-col items-center justify-center py-16">
-              <p className="text-sm text-muted-foreground">Nenhum bombeiro encontrado.</p>
+              <p className="text-sm text-muted-foreground">
+                {search || filterEquipe !== "todas"
+                  ? "Nenhum bombeiro encontrado com os filtros aplicados."
+                  : "Nenhum bombeiro elegível para FMO. Cadastre bombeiros nas prontidões Verde, Azul ou Amarela e configure as escalas de serviço."}
+              </p>
             </CardContent>
           </Card>
         ) : (
@@ -187,7 +167,7 @@ export default function FolhasObrigatorias() {
                   <tr className="border-b border-border bg-secondary/30">
                     <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Bombeiro</th>
                     <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Prontidão</th>
-                    <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Serviços</th>
+                    <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Dias de Serviço</th>
                     <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">FMO Geradas</th>
                     <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">FMO Usadas</th>
                     <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Saldo FMO</th>
@@ -196,7 +176,7 @@ export default function FolhasObrigatorias() {
                 <tbody>
                   {filtered.map((item: any) => {
                     const saldo = item.saldo?.saldoFMO ?? 0;
-                    const prontidoes = item.saldo?.totalProntidoes ?? 0;
+                    const diasServico = item.saldo?.totalDiasServico ?? 0;
                     const fmoGeradas = item.saldo?.totalFMOGeradas ?? 0;
                     const fmoUsadas = item.saldo?.fmoUsadas ?? 0;
                     return (
@@ -216,7 +196,7 @@ export default function FolhasObrigatorias() {
                           <TeamBadge equipe={item.bombeiro.equipe as Equipe} size="sm" />
                         </td>
                         <td className="px-4 py-3 text-center">
-                          <span className="text-sm font-semibold text-foreground">{prontidoes}</span>
+                          <span className="text-sm font-semibold text-foreground">{diasServico}</span>
                         </td>
                         <td className="px-4 py-3 text-center">
                           <span className="text-sm font-semibold text-foreground">{fmoGeradas}</span>
@@ -242,54 +222,6 @@ export default function FolhasObrigatorias() {
           </Card>
         )}
       </div>
-
-      {/* Add prontidão dialog */}
-      <Dialog open={showAddProntidao} onOpenChange={setShowAddProntidao}>
-        <DialogContent className="bg-card border-border">
-          <DialogHeader>
-            <DialogTitle style={{ fontFamily: "Montserrat, sans-serif" }}>Registrar Prontidão</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground uppercase tracking-wide">Bombeiro *</Label>
-              <Select value={formProntidao.bombeiroId} onValueChange={v => setFormProntidao(f => ({ ...f, bombeiroId: v }))}>
-                <SelectTrigger className="bg-background border-border">
-                  <SelectValue placeholder="Selecione o bombeiro" />
-                </SelectTrigger>
-                <SelectContent>
-                  {bombeirosElegiveis.map(b => (
-                    <SelectItem key={b.id} value={String(b.id)}>
-                      {b.posto} {b.nome} — {b.equipe}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground uppercase tracking-wide">Data da Prontidão *</Label>
-              <Input type="date" value={formProntidao.data} onChange={e => setFormProntidao(f => ({ ...f, data: e.target.value }))} className="bg-background border-border" />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground uppercase tracking-wide">Prontidão (se diferente da equipe)</Label>
-              <Select value={formProntidao.equipe} onValueChange={v => setFormProntidao(f => ({ ...f, equipe: v as Equipe }))}>
-                <SelectTrigger className="bg-background border-border"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {EQUIPES_PRONTIDAO.map(e => (
-                    <SelectItem key={e} value={e}>{e}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddProntidao(false)} className="border-border">Cancelar</Button>
-            <Button onClick={handleSubmitProntidao} disabled={createProntidao.isPending} className="bg-primary hover:bg-primary/90 text-primary-foreground">
-              {createProntidao.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-              Registrar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </AppLayout>
   );
 }
