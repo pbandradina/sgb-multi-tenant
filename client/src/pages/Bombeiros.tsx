@@ -22,6 +22,17 @@ const POSTOS = [
   "Subtenente"
 ];
 
+// Formata data sem conversão de timezone (evita bug de 1 dia a menos)
+function formatDateLocal(val: string | Date): string {
+  if (!val) return "";
+  if (typeof val === "string" && /^\d{4}-\d{2}-\d{2}/.test(val)) {
+    const [y, m, d] = val.split("T")[0].split("-").map(Number);
+    return `${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}/${y}`;
+  }
+  const date = typeof val === "string" ? new Date(val) : val;
+  return `${String(date.getDate()).padStart(2, "0")}/${String(date.getMonth() + 1).padStart(2, "0")}/${date.getFullYear()}`;
+}
+
 export default function Bombeiros() {
   const { loading, isAuthenticated } = useAuth();
   const { quartelId } = useQuartel();
@@ -225,7 +236,7 @@ export default function Bombeiros() {
                         <td className="px-4 py-3 text-sm text-muted-foreground">{b.posto}</td>
                         <td className="px-4 py-3"><TeamBadge equipe={b.equipe as Equipe} size="sm" /></td>
                         <td className="px-4 py-3 text-sm text-muted-foreground">
-                          {new Date(b.dataInicio).toLocaleDateString("pt-BR")}
+                          {formatDateLocal(b.dataInicio)}
                         </td>
                         <td className="px-4 py-3 text-right">
                           <div className="flex items-center justify-end gap-1">
@@ -279,8 +290,8 @@ export default function Bombeiros() {
                                       <div className="flex items-center gap-3">
                                         <TeamBadge equipe={h.equipe as Equipe} size="sm" />
                                         <span className="text-xs text-muted-foreground">
-                                          {new Date(h.dataInicio).toLocaleDateString("pt-BR")} →{" "}
-                                          {h.dataFim ? new Date(h.dataFim).toLocaleDateString("pt-BR") : <span className="text-emerald-400 font-medium">Vigente</span>}
+                                          {formatDateLocal(h.dataInicio)} →{" "}
+                                          {h.dataFim ? formatDateLocal(h.dataFim) : <span className="text-emerald-400 font-medium">Vigente</span>}
                                         </span>
                                         {h.observacao && <span className="text-xs text-muted-foreground italic">· {h.observacao}</span>}
                                       </div>

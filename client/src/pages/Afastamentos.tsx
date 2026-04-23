@@ -30,10 +30,9 @@ export const SIGLAS_AFASTAMENTO = [
   { sigla: "CAS", label: "Curso Aperfeiçoamento",      cor: "bg-fuchsia-600 text-white" },
   { sigla: "EAP", label: "Estágio Atualização",        cor: "bg-lime-600 text-white" },
   { sigla: "TAF", label: "Teste Aptidão Física",       cor: "bg-emerald-600 text-white" },
-  { sigla: "EX",  label: "Expediente",                 cor: "bg-cyan-600 text-white" },
   { sigla: "ME",  label: "Meio Expediente",            cor: "bg-sky-600 text-white" },
   { sigla: "AG",  label: "Aglutinada",                 cor: "bg-teal-600 text-white" },
-] as const;
+] as const; // EX removido — expediente é tipo de escala, não afastamento
 
 type TipoAfastamento = typeof SIGLAS_AFASTAMENTO[number]["sigla"];
 
@@ -41,8 +40,27 @@ function getSiglaConfig(sigla: string) {
   return SIGLAS_AFASTAMENTO.find(s => s.sigla === sigla) ?? { sigla, label: sigla, cor: "bg-slate-700 text-white" };
 }
 
+// Formata data sem conversão de timezone (evita o bug de 1 dia a menos)
+function formatDate(val: string | Date): string {
+  if (!val) return "";
+  // Se for string no formato YYYY-MM-DD, parsear sem timezone
+  if (typeof val === "string" && /^\d{4}-\d{2}-\d{2}/.test(val)) {
+    const [y, m, d] = val.split("T")[0].split("-").map(Number);
+    return `${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}/${y}`;
+  }
+  const date = typeof val === "string" ? new Date(val) : val;
+  return date.toLocaleDateString("pt-BR");
+}
+
 function isAtivo(dataFim: string | Date) {
-  return new Date(dataFim) >= new Date(new Date().setHours(0, 0, 0, 0));
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  if (typeof dataFim === "string" && /^\d{4}-\d{2}-\d{2}/.test(dataFim)) {
+    const [y, m, d] = dataFim.split("T")[0].split("-").map(Number);
+    const fim = new Date(y, m - 1, d);
+    return fim >= today;
+  }
+  return new Date(dataFim) >= today;
 }
 
 export default function Afastamentos() {
@@ -52,7 +70,14 @@ export default function Afastamentos() {
   const [search, setSearch] = useState("");
   const [showAdd, setShowAdd] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
-  const [form, setForm] = useState({ bombeiroId: "", tipo: "", dataInicio: "", dataFim: "", observacao: "" });
+  const [form, setForm] = useState({
+    bombeiroId: "",
+    tipo: "",
+    dataInicio: "",
+    dataFim: "",
+    observacao: "",
+    periodoConcessao: "",
+  });
 
   useEffect(() => {
     if (!loading && !isAuthenticated) { window.location.href = getLoginUrl(); return; }
@@ -63,12 +88,18 @@ export default function Afastamentos() {
   const { data: bombeiros } = trpc.bombeiro.list.useQuery({ quartelId: quartelId! }, { enabled: !!quartelId });
   const { data: afastamentos, isLoading } = trpc.afastamento.listByQuartel.useQuery({ quartelId: quartelId! }, { enabled: !!quartelId });
 
+  // Buscar períodos de concessão do bombeiro selecionado (para FMO)
+  const { data: saldoBombeiro } = trpc.fo.saldoBombeiro.useQuery(
+    { bombeiroId: parseInt(form.bombeiroId), quartelId: quartelId! },
+    { enabled: !!form.bombeiroId && !!quartelId && form.tipo === "FMO" }
+  );
+
   const createMutation = trpc.afastamento.create.useMutation({
     onSuccess: () => {
       utils.afastamento.listByQuartel.invalidate();
       utils.afastamento.listAtivos.invalidate();
       setShowAdd(false);
-      setForm({ bombeiroId: "", tipo: "", dataInicio: "", dataFim: "", observacao: "" });
+      setForm({ bombeiroId: "", tipo: "", dataInicio: "", dataFim: "", observacao: "", periodoConcessao: "" });
       toast.success("Afastamento registrado com sucesso!");
     },
     onError: (e) => toast.error(e.message),
@@ -94,6 +125,10 @@ export default function Afastamentos() {
       toast.error("Preencha todos os campos obrigatórios.");
       return;
     }
+    if (form.tipo === "FMO" && !form.periodoConcessao) {
+      toast.error("Para FMO, informe o período de concessão.");
+      return;
+    }
     createMutation.mutate({
       quartelId: quartelId!,
       bombeiroId: parseInt(form.bombeiroId),
@@ -101,12 +136,15 @@ export default function Afastamentos() {
       dataInicio: form.dataInicio,
       dataFim: form.dataFim,
       descricao: form.observacao || undefined,
+      periodoConcessao: form.periodoConcessao || undefined,
     });
   };
 
   if (loading || !quartelId) {
     return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="w-8 h-8 text-primary animate-spin" /></div>;
   }
+
+  const periodosDisponiveis = saldoBombeiro?.periodosConcessao ?? [];
 
   return (
     <AppLayout title="Afastamentos">
@@ -147,6 +185,7 @@ export default function Afastamentos() {
                     <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Bombeiro</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Tipo</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Período</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Concessão</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</th>
                     <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Ações</th>
                   </tr>
@@ -178,9 +217,15 @@ export default function Afastamentos() {
                         </td>
                         <td className="px-4 py-3">
                           <p className="text-sm text-foreground">
-                            {new Date(item.afastamento.dataInicio).toLocaleDateString("pt-BR")} —{" "}
-                            {new Date(item.afastamento.dataFim).toLocaleDateString("pt-BR")}
+                            {formatDate(item.afastamento.dataInicio)} — {formatDate(item.afastamento.dataFim)}
                           </p>
+                        </td>
+                        <td className="px-4 py-3">
+                          {item.afastamento.periodoConcessao ? (
+                            <span className="text-xs text-purple-400 font-medium">{item.afastamento.periodoConcessao}</span>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
                         </td>
                         <td className="px-4 py-3">
                           {ativo ? (
@@ -239,7 +284,10 @@ export default function Afastamentos() {
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground uppercase tracking-wide">Bombeiro *</Label>
-              <Select value={form.bombeiroId} onValueChange={v => setForm(f => ({ ...f, bombeiroId: v }))}>
+              <Select
+                value={form.bombeiroId}
+                onValueChange={v => setForm(f => ({ ...f, bombeiroId: v, periodoConcessao: "" }))}
+              >
                 <SelectTrigger className="bg-background border-border">
                   <SelectValue placeholder="Selecione o bombeiro" />
                 </SelectTrigger>
@@ -252,9 +300,13 @@ export default function Afastamentos() {
                 </SelectContent>
               </Select>
             </div>
+
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground uppercase tracking-wide">Tipo de Afastamento *</Label>
-              <Select value={form.tipo} onValueChange={v => setForm(f => ({ ...f, tipo: v }))}>
+              <Select
+                value={form.tipo}
+                onValueChange={v => setForm(f => ({ ...f, tipo: v, periodoConcessao: "" }))}
+              >
                 <SelectTrigger className="bg-background border-border">
                   <SelectValue placeholder="Selecione o tipo" />
                 </SelectTrigger>
@@ -272,16 +324,56 @@ export default function Afastamentos() {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Período de concessão — só para FMO */}
+            {form.tipo === "FMO" && (
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground uppercase tracking-wide">Período de Concessão *</Label>
+                {!form.bombeiroId ? (
+                  <p className="text-xs text-muted-foreground italic">Selecione o bombeiro para ver os períodos disponíveis.</p>
+                ) : periodosDisponiveis.length === 0 ? (
+                  <p className="text-xs text-amber-400 italic">Nenhum período de FMO disponível para este bombeiro.</p>
+                ) : (
+                  <Select
+                    value={form.periodoConcessao}
+                    onValueChange={v => setForm(f => ({ ...f, periodoConcessao: v }))}
+                  >
+                    <SelectTrigger className="bg-background border-border">
+                      <SelectValue placeholder="Selecione o período de concessão" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {periodosDisponiveis.map((p: any) => (
+                        <SelectItem key={p.numero} value={p.label}>
+                          <span className="text-sm">{p.label}</span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground uppercase tracking-wide">Data Início *</Label>
-                <Input type="date" value={form.dataInicio} onChange={e => setForm(f => ({ ...f, dataInicio: e.target.value }))} className="bg-background border-border" />
+                <Input
+                  type="date"
+                  value={form.dataInicio}
+                  onChange={e => setForm(f => ({ ...f, dataInicio: e.target.value }))}
+                  className="bg-background border-border"
+                />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground uppercase tracking-wide">Data Fim *</Label>
-                <Input type="date" value={form.dataFim} onChange={e => setForm(f => ({ ...f, dataFim: e.target.value }))} className="bg-background border-border" />
+                <Input
+                  type="date"
+                  value={form.dataFim}
+                  onChange={e => setForm(f => ({ ...f, dataFim: e.target.value }))}
+                  className="bg-background border-border"
+                />
               </div>
             </div>
+
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground uppercase tracking-wide">Observação</Label>
               <Input

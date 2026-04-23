@@ -432,9 +432,26 @@ function contarDiasCicloNoIntervalo(equipe: string, periodoInicio: Date, periodo
   return total;
 }
 
+// Formata data como DD/MM/YYYY sem conversão de timezone
+function formatDateBR(date: Date): string {
+  const d = String(date.getDate()).padStart(2, "0");
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const y = date.getFullYear();
+  return `${d}/${m}/${y}`;
+}
+
+// Parse de string "YYYY-MM-DD" para Date sem conversão de timezone
+export function parseDateLocal(str: string | Date): Date {
+  if (str instanceof Date) {
+    return new Date(str.getFullYear(), str.getMonth(), str.getDate());
+  }
+  const [y, m, d] = str.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
 export async function calcularSaldoFMO(bombeiroId: number, quartelId: number) {
   const db = await getDb();
-  if (!db) return { totalDiasServico: 0, totalFMOGeradas: 0, fmoUsadas: 0, saldoFMO: 0, elegivel: false };
+  if (!db) return { totalDiasServico: 0, totalFMOGeradas: 0, fmoUsadas: 0, saldoFMO: 0, elegivel: false, periodosConcessao: [] };
 
   // Buscar bombeiro
   const bombeiroRows = await db
@@ -444,7 +461,7 @@ export async function calcularSaldoFMO(bombeiroId: number, quartelId: number) {
     .limit(1);
 
   const bombeiro = bombeiroRows[0];
-  if (!bombeiro) return { totalDiasServico: 0, totalFMOGeradas: 0, fmoUsadas: 0, saldoFMO: 0, elegivel: false };
+  if (!bombeiro) return { totalDiasServico: 0, totalFMOGeradas: 0, fmoUsadas: 0, saldoFMO: 0, elegivel: false, periodosConcessao: [] };
 
   // Buscar histórico de vínculos
   const historico = await db
@@ -459,25 +476,61 @@ export async function calcularSaldoFMO(bombeiroId: number, quartelId: number) {
   let totalDiasServico = 0;
 
   if (historico.length > 0) {
-    // Usar histórico de vínculos: cada período contribui com os dias do ciclo da sua prontidão
     for (const vinculo of historico) {
       if (vinculo.equipe === "Administrativo") continue;
-      const inicio = new Date(vinculo.dataInicio);
-      const fim = vinculo.dataFim ? new Date(vinculo.dataFim) : hoje;
+      const inicio = parseDateLocal(vinculo.dataInicio as any);
+      const fim = vinculo.dataFim ? parseDateLocal(vinculo.dataFim as any) : hoje;
       totalDiasServico += contarDiasCicloNoIntervalo(vinculo.equipe, inicio, fim);
     }
   } else {
-    // Sem histórico: usar equipe atual desde dataInicio do bombeiro
     if (bombeiro.equipe === "Administrativo") {
-      return { totalDiasServico: 0, totalFMOGeradas: 0, fmoUsadas: 0, saldoFMO: 0, elegivel: false };
+      return { totalDiasServico: 0, totalFMOGeradas: 0, fmoUsadas: 0, saldoFMO: 0, elegivel: false, periodosConcessao: [] };
     }
-    const inicio = new Date(bombeiro.dataInicio);
+    const inicio = parseDateLocal(bombeiro.dataInicio as any);
     totalDiasServico = contarDiasCicloNoIntervalo(bombeiro.equipe, inicio, hoje);
   }
 
   const totalFMOGeradas = Math.floor(totalDiasServico / 2);
 
-  // FMO usadas = afastamentos do tipo "dispensa"
+  // Gerar períodos de concessão: a cada 2 dias de serviço, 1 FMO é gerada
+  // Reconstruir a sequência de dias de serviço para identificar os pares
+  const diasServico: Date[] = [];
+
+  if (historico.length > 0) {
+    for (const vinculo of historico) {
+      if (vinculo.equipe === "Administrativo") continue;
+      const inicio = parseDateLocal(vinculo.dataInicio as any);
+      const fim = vinculo.dataFim ? parseDateLocal(vinculo.dataFim as any) : hoje;
+      for (let d = new Date(inicio); d <= fim; d.setDate(d.getDate() + 1)) {
+        if (getProntidaoDoDiaServer(d) === vinculo.equipe) {
+          diasServico.push(new Date(d));
+        }
+      }
+    }
+  } else if (bombeiro.equipe !== "Administrativo") {
+    const inicio = parseDateLocal(bombeiro.dataInicio as any);
+    for (let d = new Date(inicio); d <= hoje; d.setDate(d.getDate() + 1)) {
+      if (getProntidaoDoDiaServer(d) === bombeiro.equipe) {
+        diasServico.push(new Date(d));
+      }
+    }
+  }
+
+  // Cada par de dias de serviço gera 1 FMO
+  const periodosConcessao: Array<{ numero: number; dataInicio: string; dataFim: string; label: string }> = [];
+  for (let i = 0; i < diasServico.length - 1; i += 2) {
+    const num = Math.floor(i / 2) + 1;
+    const dInicio = diasServico[i];
+    const dFim = diasServico[i + 1];
+    periodosConcessao.push({
+      numero: num,
+      dataInicio: formatDateBR(dInicio),
+      dataFim: formatDateBR(dFim),
+      label: `FMO #${num}: ${formatDateBR(dInicio)} a ${formatDateBR(dFim)}`,
+    });
+  }
+
+  // FMO usadas
   const fmoUsadasRows = await db
     .select()
     .from(afastamentos)
@@ -497,6 +550,7 @@ export async function calcularSaldoFMO(bombeiroId: number, quartelId: number) {
     fmoUsadas: fmoUsadasRows.length,
     saldoFMO: Math.max(0, saldoFMO),
     elegivel: true,
+    periodosConcessao,
   };
 }
 

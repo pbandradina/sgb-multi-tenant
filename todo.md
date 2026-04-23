@@ -67,3 +67,9 @@
 - [x] Atualizar router de afastamentos com novos tipos/siglas
 - [x] Atualizar tela de Afastamentos com seletor de siglas e cores
 - [x] Exibir siglas de afastamentos nas células do calendário
+
+## Correções Urgentes
+- [x] Corrigir bug de fuso horário: datas de afastamento registradas 1 dia antes do correto
+- [x] Adicionar campo de período de concessão na FMO (qual período de serviço originou a FMO)
+- [x] Remover EX (Expediente) da lista de afastamentos
+- [x] Botão 'Aplicar Código a Período' já existente cobre alterar equipe com período (Verde/Azul/Amarela com data início e fim)

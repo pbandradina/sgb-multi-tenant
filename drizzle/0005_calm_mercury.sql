@@ -1,0 +1,1 @@
+ALTER TABLE `afastamentos` ADD `periodoConcessao` varchar(100);

@@ -36,6 +36,20 @@
       "when": 1776955459793,
       "tag": "0004_worthless_pride",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1776956229562,
+      "tag": "0005_calm_mercury",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1776956849873,
+      "tag": "0006_charming_beast",
+      "breakpoints": true
     }
   ]
 }

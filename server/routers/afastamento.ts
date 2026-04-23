@@ -13,8 +13,9 @@ import {
 } from "../db";
 
 // Siglas de afastamentos conforme sistema anterior
+// EX (Expediente) removido — é tipo de escala semanal, não afastamento
 export const TIPOS_AFASTAMENTO = [
-  "F", "LP", "LT", "DS", "FMO", "PA", "D", "C", "LTS", "CFS", "CAS", "EAP", "TAF", "EX", "ME", "AG"
+  "F", "LP", "LT", "DS", "FMO", "PA", "D", "C", "LTS", "CFS", "CAS", "EAP", "TAF", "ME", "AG"
 ] as const;
 
 export type TipoAfastamento = typeof TIPOS_AFASTAMENTO[number];
@@ -71,6 +72,7 @@ export const afastamentoRouter = router({
       dataInicio: z.string(),
       dataFim: z.string(),
       descricao: z.string().optional(),
+      periodoConcessao: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       if (ctx.user.role !== "admin") await assertQuartelAccess(ctx.user.id, input.quartelId);
@@ -81,6 +83,7 @@ export const afastamentoRouter = router({
         dataInicio: input.dataInicio as any,
         dataFim: input.dataFim as any,
         descricao: input.descricao,
+        periodoConcessao: input.periodoConcessao,
       });
       return { success: true };
     }),
