@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { SIGLAS_AFASTAMENTO } from "@/pages/Afastamentos";
 
 const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 const DIAS_SEMANA = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
@@ -34,6 +35,16 @@ function getProntidaoDoDia(date: Date): Equipe {
   return CYCLE[idx];
 }
 
+function getSiglaColor(sigla: string): string {
+  const config = SIGLAS_AFASTAMENTO.find(s => s.sigla === sigla);
+  return config?.cor ?? "bg-slate-700 text-white";
+}
+
+// Formata data como YYYY-MM-DD para comparação com banco
+function toDateStr(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
 export default function Escalas() {
   const { loading, isAuthenticated } = useAuth();
   const { quartelId } = useQuartel();
@@ -48,9 +59,15 @@ export default function Escalas() {
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
 
-  // Buscar bombeiros do quartel para saber quais prontidões e datas de início
+  // Buscar bombeiros do quartel
   const { data: bombeiros } = trpc.bombeiro.list.useQuery(
     { quartelId: quartelId! },
+    { enabled: !!quartelId }
+  );
+
+  // Buscar afastamentos do mês atual
+  const { data: afastamentosMes } = trpc.afastamento.listByMes.useQuery(
+    { quartelId: quartelId!, ano: year, mes: month + 1 },
     { enabled: !!quartelId }
   );
 
@@ -58,7 +75,6 @@ export default function Escalas() {
   const nextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
 
   // Mapa: equipe → data de início mais antiga dos bombeiros dessa equipe
-  // Para colorir o fundo das células apenas a partir da data em que há bombeiros na prontidão
   const equipeDataInicio = useMemo(() => {
     const map: Record<string, Date> = {};
     if (!bombeiros) return map;
@@ -71,6 +87,41 @@ export default function Escalas() {
     }
     return map;
   }, [bombeiros]);
+
+  // Mapa: "YYYY-MM-DD" → [{ bombeiroNome, sigla, cor }]
+  // Para cada dia do mês, quais afastamentos existem
+  const afastamentosPorDia = useMemo(() => {
+    const map: Record<string, Array<{ bombeiroNome: string; sigla: string; cor: string }>> = {};
+    if (!afastamentosMes || !bombeiros) return map;
+
+    for (const item of afastamentosMes) {
+      const af = (item as any).afastamento;
+      const bom = (item as any).bombeiro;
+      if (!af || !bom) continue;
+
+      // Iterar cada dia do período do afastamento dentro do mês
+      const inicio = new Date(af.dataInicio);
+      const fim = new Date(af.dataFim);
+      const mesInicio = new Date(year, month, 1);
+      const mesFim = new Date(year, month + 1, 0);
+
+      const start = inicio < mesInicio ? mesInicio : inicio;
+      const end = fim > mesFim ? mesFim : fim;
+
+      const cur = new Date(start);
+      while (cur <= end) {
+        const key = toDateStr(cur);
+        if (!map[key]) map[key] = [];
+        map[key].push({
+          bombeiroNome: bom.nome,
+          sigla: af.tipo,
+          cor: getSiglaColor(af.tipo),
+        });
+        cur.setDate(cur.getDate() + 1);
+      }
+    }
+    return map;
+  }, [afastamentosMes, bombeiros, year, month]);
 
   // Build calendar days
   const calendarDays = useMemo(() => {
@@ -170,11 +221,14 @@ export default function Escalas() {
                 hasBombeiroAtivo = dateOnly >= inicioOnly;
               }
 
+              // Afastamentos deste dia
+              const siglasDoDia = date ? (afastamentosPorDia[toDateStr(date)] ?? []) : [];
+
               return (
                 <div
                   key={idx}
                   className={cn(
-                    "min-h-[72px] border-b border-r border-border/40 last:border-r-0 flex flex-col items-center pt-2 px-1 relative",
+                    "min-h-[80px] border-b border-r border-border/40 last:border-r-0 flex flex-col items-center pt-2 px-1 pb-1 relative",
                     !day && "bg-secondary/5",
                   )}
                   style={hasBombeiroAtivo && colors ? { backgroundColor: colors.cellBg } : undefined}
@@ -193,10 +247,24 @@ export default function Escalas() {
                       >
                         {day}
                       </div>
-                      {/* Space reserved for absence codes (siglas de afastamentos) */}
-                      <div className="w-full mt-1 space-y-0.5 min-h-[20px]">
-                        {/* Siglas de afastamentos serão exibidas aqui */}
-                      </div>
+
+                      {/* Siglas de afastamentos */}
+                      {siglasDoDia.length > 0 && (
+                        <div className="w-full mt-1 flex flex-wrap gap-0.5 justify-center">
+                          {siglasDoDia.slice(0, 4).map((item, i) => (
+                            <span
+                              key={i}
+                              title={`${item.bombeiroNome} — ${item.sigla}`}
+                              className={`inline-flex items-center justify-center rounded text-[8px] font-black px-1 py-0.5 leading-none ${item.cor}`}
+                            >
+                              {item.sigla}
+                            </span>
+                          ))}
+                          {siglasDoDia.length > 4 && (
+                            <span className="text-[8px] text-muted-foreground font-medium">+{siglasDoDia.length - 4}</span>
+                          )}
+                        </div>
+                      )}
                     </>
                   )}
                 </div>
@@ -210,8 +278,7 @@ export default function Escalas() {
           <span className="text-muted-foreground mt-0.5 flex-shrink-0 text-sm">ℹ</span>
           <p className="text-xs text-muted-foreground">
             Ciclo fixo: <strong style={{ color: CYCLE_COLORS["Prontidão Verde"].text }}>Verde</strong> → <strong style={{ color: CYCLE_COLORS["Prontidão Amarela"].text }}>Amarela</strong> → <strong style={{ color: CYCLE_COLORS["Prontidão Azul"].text }}>Azul</strong>, a partir de 01/Jan/2025.
-            O fundo colorido da célula indica que há bombeiros desta prontidão em serviço naquele dia (a partir da data de início do cadastro).
-            As siglas de afastamentos serão exibidas dentro de cada célula.
+            O fundo colorido indica dias de serviço. As siglas de afastamentos aparecem dentro de cada célula.
           </p>
         </div>
       </div>

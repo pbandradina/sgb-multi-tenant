@@ -66,4 +66,4 @@
 - [x] Atualizar enum de tipos no schema para siglas corretas (F, LP, LT, DS, FMO, PA, D, C, LTS, CFS, CAS, EAP, TAF, EX, ME, AG)
 - [x] Atualizar router de afastamentos com novos tipos/siglas
 - [x] Atualizar tela de Afastamentos com seletor de siglas e cores
-- [ ] Exibir siglas de afastamentos nas células do calendário (próxima etapa)
+- [x] Exibir siglas de afastamentos nas células do calendário
