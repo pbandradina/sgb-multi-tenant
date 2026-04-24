@@ -65,6 +65,7 @@ export const bombeiros = mysqlTable("bombeiros", {
   id: int("id").autoincrement().primaryKey(),
   quartelId: int("quartelId").notNull(),
   nome: varchar("nome", { length: 200 }).notNull(),
+  nomeGuerra: varchar("nomeGuerra", { length: 100 }),
   posto: varchar("posto", { length: 100 }).notNull(),
   equipe: mysqlEnum("equipe", ["Prontidão Verde", "Prontidão Azul", "Prontidão Amarela", "Administrativo"]).notNull(),
   dataInicio: date("dataInicio", { mode: "string" }).notNull(),

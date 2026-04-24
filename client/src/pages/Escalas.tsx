@@ -278,7 +278,7 @@ export default function Escalas() {
                       const label = eq === "Administrativo" ? "ADM" : eq.substring(0, 2).toUpperCase();
                       return (
                         <option key={b.id} value={b.id}>
-                          [{label}] {b.nome.trim()} ({b.posto})
+                          [{label}] {(b.nomeGuerra?.trim() || b.nome.trim())} ({b.posto})
                         </option>
                       );
                     })}
@@ -561,14 +561,14 @@ export default function Escalas() {
               {bombeirosDoProntidao.length > 0 && (
                 <optgroup label={`Prontidão do dia (${prontidaoDoModal?.replace("Prontidão ", "")})`}>
                   {bombeirosDoProntidao.map(b => (
-                    <option key={b.id} value={b.id}>{b.nome} ({b.posto})</option>
+                    <option key={b.id} value={b.id}>{(b.nomeGuerra?.trim() || b.nome)} ({b.posto})</option>
                   ))}
                 </optgroup>
               )}
               {outrosBombeiros.length > 0 && (
                 <optgroup label="Outras prontidões">
                   {outrosBombeiros.map(b => (
-                    <option key={b.id} value={b.id}>{b.nome} ({b.equipe.replace("Prontidão ", "")})</option>
+                    <option key={b.id} value={b.id}>{(b.nomeGuerra?.trim() || b.nome)} ({b.equipe.replace("Prontidão ", "")})</option>
                   ))}
                 </optgroup>
               )}

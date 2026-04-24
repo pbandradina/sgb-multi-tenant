@@ -37,6 +37,7 @@ export const bombeiroRouter = router({
     .input(z.object({
       quartelId: z.number(),
       nome: z.string().min(3),
+      nomeGuerra: z.string().optional(),
       posto: z.string().min(2),
       equipe: z.enum(["Prontidão Verde", "Prontidão Azul", "Prontidão Amarela", "Administrativo"]),
       dataInicio: z.string(), // YYYY-MM-DD
@@ -46,6 +47,7 @@ export const bombeiroRouter = router({
       await createBombeiro({
         quartelId: input.quartelId,
         nome: input.nome,
+        nomeGuerra: input.nomeGuerra ?? null,
         posto: input.posto,
         equipe: input.equipe,
         dataInicio: input.dataInicio as any,
@@ -58,6 +60,7 @@ export const bombeiroRouter = router({
       id: z.number(),
       quartelId: z.number(),
       nome: z.string().min(3).optional(),
+      nomeGuerra: z.string().optional().nullable(),
       posto: z.string().min(2).optional(),
       equipe: z.enum(["Prontidão Verde", "Prontidão Azul", "Prontidão Amarela", "Administrativo"]).optional(),
       dataInicio: z.string().optional(),

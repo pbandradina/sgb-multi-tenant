@@ -12,9 +12,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Loader2, Plus, Trash2, Search, Users, UserCheck, CalendarRange, History, ChevronDown, ChevronUp } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Loader2, Plus, Trash2, Search, Users, UserCheck, CalendarRange, History, ChevronDown, ChevronUp, Pencil } from "lucide-react";
 import { toast } from "sonner";
 
 const POSTOS = [
@@ -22,7 +21,6 @@ const POSTOS = [
   "Subtenente"
 ];
 
-// Formata data sem conversão de timezone (evita bug de 1 dia a menos)
 function formatDateLocal(val: string | Date): string {
   if (!val) return "";
   if (typeof val === "string" && /^\d{4}-\d{2}-\d{2}/.test(val)) {
@@ -33,19 +31,34 @@ function formatDateLocal(val: string | Date): string {
   return `${String(date.getDate()).padStart(2, "0")}/${String(date.getMonth() + 1).padStart(2, "0")}/${date.getFullYear()}`;
 }
 
+type BombeiroForm = {
+  nome: string;
+  nomeGuerra: string;
+  posto: string;
+  equipe: string;
+  dataInicio: string;
+};
+
+const EMPTY_FORM: BombeiroForm = { nome: "", nomeGuerra: "", posto: "", equipe: "", dataInicio: "" };
+
 export default function Bombeiros() {
   const { loading, isAuthenticated } = useAuth();
   const { quartelId } = useQuartel();
   const [, navigate] = useLocation();
   const [search, setSearch] = useState("");
   const [filterEquipe, setFilterEquipe] = useState<string>("all");
-  const [showAdd, setShowAdd] = useState(false);
+
+  // Add / Edit dialog
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [form, setForm] = useState<BombeiroForm>(EMPTY_FORM);
+
+  // Delete
   const [deleteId, setDeleteId] = useState<number | null>(null);
-  const [form, setForm] = useState({ nome: "", posto: "", equipe: "", dataInicio: "" });
 
   // Aplicar Código a Período
   const [showAplicarCodigo, setShowAplicarCodigo] = useState(false);
-  const [selectedBombeiro, setSelectedBombeiro] = useState<{ id: number; nome: string; equipe: string } | null>(null);
+  const [selectedBombeiro, setSelectedBombeiro] = useState<{ id: number; nome: string; nomeGuerra?: string | null; equipe: string } | null>(null);
   const [codigoForm, setCodigoForm] = useState({ equipe: "Prontidão Azul" as Equipe, dataInicio: "", dataFim: "", observacao: "" });
 
   // Histórico expandido
@@ -61,7 +74,6 @@ export default function Bombeiros() {
     { quartelId: quartelId! }, { enabled: !!quartelId }
   );
 
-  // Histórico do bombeiro selecionado
   const { data: historicoBombeiro, isLoading: loadingHistorico } = trpc.historico.listByBombeiro.useQuery(
     { bombeiroId: expandedHistorico!, quartelId: quartelId! },
     { enabled: !!expandedHistorico && !!quartelId }
@@ -70,9 +82,20 @@ export default function Bombeiros() {
   const createMutation = trpc.bombeiro.create.useMutation({
     onSuccess: () => {
       utils.bombeiro.list.invalidate();
-      setShowAdd(false);
-      setForm({ nome: "", posto: "", equipe: "", dataInicio: "" });
+      setShowForm(false);
+      setForm(EMPTY_FORM);
       toast.success("Bombeiro cadastrado com sucesso!");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const updateMutation = trpc.bombeiro.update.useMutation({
+    onSuccess: () => {
+      utils.bombeiro.list.invalidate();
+      setShowForm(false);
+      setEditingId(null);
+      setForm(EMPTY_FORM);
+      toast.success("Bombeiro atualizado com sucesso!");
     },
     onError: (e) => toast.error(e.message),
   });
@@ -93,7 +116,7 @@ export default function Bombeiros() {
       setShowAplicarCodigo(false);
       setSelectedBombeiro(null);
       setCodigoForm({ equipe: "Prontidão Azul", dataInicio: "", dataFim: "", observacao: "" });
-      toast.success("Código aplicado com sucesso! Vínculo de prontidão atualizado.");
+      toast.success("Código aplicado com sucesso!");
     },
     onError: (e) => toast.error(e.message),
   });
@@ -107,24 +130,57 @@ export default function Bombeiros() {
   });
 
   const filtered = (bombeiros || []).filter(b => {
-    const matchSearch = b.nome.toLowerCase().includes(search.toLowerCase()) ||
+    const matchSearch =
+      b.nome.toLowerCase().includes(search.toLowerCase()) ||
+      (b.nomeGuerra ?? "").toLowerCase().includes(search.toLowerCase()) ||
       b.posto.toLowerCase().includes(search.toLowerCase());
     const matchEquipe = filterEquipe === "all" || b.equipe === filterEquipe;
     return matchSearch && matchEquipe;
   });
+
+  const openAdd = () => {
+    setEditingId(null);
+    setForm(EMPTY_FORM);
+    setShowForm(true);
+  };
+
+  const openEdit = (b: typeof filtered[0]) => {
+    setEditingId(b.id);
+    setForm({
+      nome: b.nome,
+      nomeGuerra: b.nomeGuerra ?? "",
+      posto: b.posto,
+      equipe: b.equipe,
+      dataInicio: typeof b.dataInicio === "string" ? b.dataInicio.split("T")[0] : "",
+    });
+    setShowForm(true);
+  };
 
   const handleSubmit = () => {
     if (!form.nome || !form.posto || !form.equipe || !form.dataInicio) {
       toast.error("Preencha todos os campos obrigatórios.");
       return;
     }
-    createMutation.mutate({
-      quartelId: quartelId!,
-      nome: form.nome,
-      posto: form.posto,
-      equipe: form.equipe as Equipe,
-      dataInicio: form.dataInicio,
-    });
+    if (editingId) {
+      updateMutation.mutate({
+        id: editingId,
+        quartelId: quartelId!,
+        nome: form.nome,
+        nomeGuerra: form.nomeGuerra || null,
+        posto: form.posto,
+        equipe: form.equipe as Equipe,
+        dataInicio: form.dataInicio,
+      });
+    } else {
+      createMutation.mutate({
+        quartelId: quartelId!,
+        nome: form.nome,
+        nomeGuerra: form.nomeGuerra || undefined,
+        posto: form.posto,
+        equipe: form.equipe as Equipe,
+        dataInicio: form.dataInicio,
+      });
+    }
   };
 
   const handleAplicarCodigo = () => {
@@ -142,15 +198,21 @@ export default function Bombeiros() {
     });
   };
 
-  const openAplicarCodigo = (b: { id: number; nome: string; equipe: string }) => {
-    setSelectedBombeiro(b);
+  const openAplicarCodigo = (b: typeof filtered[0]) => {
+    setSelectedBombeiro({ id: b.id, nome: b.nome, nomeGuerra: b.nomeGuerra, equipe: b.equipe });
     setCodigoForm({ equipe: b.equipe as Equipe, dataInicio: "", dataFim: "", observacao: "" });
     setShowAplicarCodigo(true);
   };
 
+  // Display name: prefer nomeGuerra
+  const displayName = (b: { nome: string; nomeGuerra?: string | null }) =>
+    b.nomeGuerra?.trim() ? b.nomeGuerra.trim() : b.nome;
+
   if (loading || !quartelId) {
     return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="w-8 h-8 text-primary animate-spin" /></div>;
   }
+
+  const isMutating = createMutation.isPending || updateMutation.isPending;
 
   return (
     <AppLayout title="Bombeiros">
@@ -161,7 +223,7 @@ export default function Bombeiros() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar por nome ou posto..."
+                placeholder="Buscar por nome, nome de guerra ou posto..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 className="pl-9 bg-card border-border"
@@ -179,7 +241,7 @@ export default function Bombeiros() {
               </SelectContent>
             </Select>
           </div>
-          <Button onClick={() => setShowAdd(true)} className="bg-primary hover:bg-primary/90 text-primary-foreground">
+          <Button onClick={openAdd} className="bg-primary hover:bg-primary/90 text-primary-foreground">
             <Plus className="w-4 h-4 mr-2" />
             Adicionar Bombeiro
           </Button>
@@ -202,7 +264,7 @@ export default function Bombeiros() {
                 {search || filterEquipe !== "all" ? "Nenhum bombeiro encontrado com os filtros aplicados." : "Nenhum bombeiro cadastrado ainda."}
               </p>
               {!search && filterEquipe === "all" && (
-                <Button onClick={() => setShowAdd(true)} variant="outline" className="mt-4 border-primary/30 text-primary hover:bg-primary/10">
+                <Button onClick={openAdd} variant="outline" className="mt-4 border-primary/30 text-primary hover:bg-primary/10">
                   <Plus className="w-4 h-4 mr-2" />Adicionar primeiro bombeiro
                 </Button>
               )}
@@ -214,9 +276,10 @@ export default function Bombeiros() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border bg-secondary/30">
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Nome</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Nome de Guerra</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Nome Completo</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Posto/Graduação</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Prontidão Atual</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Prontidão</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Desde</th>
                     <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Ações</th>
                   </tr>
@@ -228,11 +291,16 @@ export default function Bombeiros() {
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center flex-shrink-0">
-                              <span className="text-xs font-bold text-primary">{b.nome.charAt(0)}</span>
+                              <span className="text-xs font-bold text-primary">
+                                {displayName(b).charAt(0).toUpperCase()}
+                              </span>
                             </div>
-                            <span className="text-sm font-medium text-foreground">{b.nome}</span>
+                            <span className="text-sm font-semibold text-foreground">
+                              {b.nomeGuerra?.trim() ? b.nomeGuerra.trim() : <span className="text-muted-foreground italic text-xs">—</span>}
+                            </span>
                           </div>
                         </td>
+                        <td className="px-4 py-3 text-sm text-muted-foreground">{b.nome}</td>
                         <td className="px-4 py-3 text-sm text-muted-foreground">{b.posto}</td>
                         <td className="px-4 py-3"><TeamBadge equipe={b.equipe as Equipe} size="sm" /></td>
                         <td className="px-4 py-3 text-sm text-muted-foreground">
@@ -240,6 +308,15 @@ export default function Bombeiros() {
                         </td>
                         <td className="px-4 py-3 text-right">
                           <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openEdit(b)}
+                              className="text-muted-foreground hover:text-primary hover:bg-primary/10"
+                              title="Editar"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </Button>
                             <Button
                               variant="ghost"
                               size="sm"
@@ -274,7 +351,7 @@ export default function Bombeiros() {
                       {/* Histórico expandido */}
                       {expandedHistorico === b.id && (
                         <tr key={`hist-${b.id}`} className="bg-secondary/10">
-                          <td colSpan={5} className="px-6 py-3">
+                          <td colSpan={6} className="px-6 py-3">
                             <div className="space-y-2">
                               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
                                 <History className="w-3.5 h-3.5" /> Histórico de Vínculos de Prontidão
@@ -282,7 +359,7 @@ export default function Bombeiros() {
                               {loadingHistorico ? (
                                 <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
                               ) : !historicoBombeiro || historicoBombeiro.length === 0 ? (
-                                <p className="text-xs text-muted-foreground italic">Nenhum vínculo registrado. Use "Aplicar Código a Período" para registrar.</p>
+                                <p className="text-xs text-muted-foreground italic">Nenhum vínculo registrado.</p>
                               ) : (
                                 <div className="space-y-1.5">
                                   {historicoBombeiro.map((h: any) => (
@@ -324,12 +401,12 @@ export default function Bombeiros() {
       <Dialog open={showAplicarCodigo} onOpenChange={(open) => { if (!open) { setShowAplicarCodigo(false); setSelectedBombeiro(null); } }}>
         <DialogContent className="bg-card border-border">
           <DialogHeader>
-            <DialogTitle style={{ fontFamily: "Montserrat, sans-serif" }}>
-              Aplicar Código a Período
-            </DialogTitle>
+            <DialogTitle style={{ fontFamily: "Montserrat, sans-serif" }}>Aplicar Código a Período</DialogTitle>
             {selectedBombeiro && (
               <p className="text-sm text-muted-foreground">
-                Bombeiro: <span className="font-medium text-foreground">{selectedBombeiro.nome}</span>
+                Bombeiro: <span className="font-medium text-foreground">
+                  {selectedBombeiro.nomeGuerra?.trim() ? selectedBombeiro.nomeGuerra : selectedBombeiro.nome}
+                </span>
               </p>
             )}
           </DialogHeader>
@@ -337,59 +414,30 @@ export default function Bombeiros() {
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground uppercase tracking-wide">Prontidão / Código *</Label>
               <Select value={codigoForm.equipe} onValueChange={v => setCodigoForm(f => ({ ...f, equipe: v as Equipe }))}>
-                <SelectTrigger className="bg-background border-border">
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger className="bg-background border-border"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {EQUIPES.map(e => (
-                    <SelectItem key={e} value={e}>{e}</SelectItem>
-                  ))}
+                  {EQUIPES.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground uppercase tracking-wide">Data Início *</Label>
-                <Input
-                  type="date"
-                  value={codigoForm.dataInicio}
-                  onChange={e => setCodigoForm(f => ({ ...f, dataInicio: e.target.value }))}
-                  className="bg-background border-border"
-                />
+                <Input type="date" value={codigoForm.dataInicio} onChange={e => setCodigoForm(f => ({ ...f, dataInicio: e.target.value }))} className="bg-background border-border" />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground uppercase tracking-wide">Data Fim (opcional)</Label>
-                <Input
-                  type="date"
-                  value={codigoForm.dataFim}
-                  onChange={e => setCodigoForm(f => ({ ...f, dataFim: e.target.value }))}
-                  className="bg-background border-border"
-                />
+                <Input type="date" value={codigoForm.dataFim} onChange={e => setCodigoForm(f => ({ ...f, dataFim: e.target.value }))} className="bg-background border-border" />
               </div>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground uppercase tracking-wide">Observação (opcional)</Label>
-              <Input
-                value={codigoForm.observacao}
-                onChange={e => setCodigoForm(f => ({ ...f, observacao: e.target.value }))}
-                placeholder="Ex: Transferência temporária"
-                className="bg-background border-border"
-              />
-            </div>
-            <div className="bg-secondary/30 rounded-lg p-3 text-xs text-muted-foreground">
-              <p className="font-medium text-foreground mb-1">ℹ️ Como funciona</p>
-              <p>Ao aplicar, o vínculo anterior (sem data fim) será automaticamente encerrado na data de início informada. O cálculo de FMO usará o histórico de vínculos para determinar quais dias contam para cada bombeiro.</p>
+              <Input value={codigoForm.observacao} onChange={e => setCodigoForm(f => ({ ...f, observacao: e.target.value }))} placeholder="Ex: Transferência temporária" className="bg-background border-border" />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setShowAplicarCodigo(false); setSelectedBombeiro(null); }} className="border-border">
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleAplicarCodigo}
-              disabled={aplicarCodigoMutation.isPending}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground"
-            >
+            <Button variant="outline" onClick={() => { setShowAplicarCodigo(false); setSelectedBombeiro(null); }} className="border-border">Cancelar</Button>
+            <Button onClick={handleAplicarCodigo} disabled={aplicarCodigoMutation.isPending} className="bg-primary hover:bg-primary/90 text-primary-foreground">
               {aplicarCodigoMutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
               Aplicar Código
             </Button>
@@ -397,16 +445,24 @@ export default function Bombeiros() {
         </DialogContent>
       </Dialog>
 
-      {/* Add dialog */}
-      <Dialog open={showAdd} onOpenChange={setShowAdd}>
+      {/* Add / Edit dialog */}
+      <Dialog open={showForm} onOpenChange={(open) => { if (!open) { setShowForm(false); setEditingId(null); setForm(EMPTY_FORM); } }}>
         <DialogContent className="bg-card border-border">
           <DialogHeader>
-            <DialogTitle style={{ fontFamily: "Montserrat, sans-serif" }}>Adicionar Bombeiro</DialogTitle>
+            <DialogTitle style={{ fontFamily: "Montserrat, sans-serif" }}>
+              {editingId ? "Editar Bombeiro" : "Adicionar Bombeiro"}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground uppercase tracking-wide">Nome Completo *</Label>
-              <Input value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))} placeholder="Nome do bombeiro" className="bg-background border-border" />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground uppercase tracking-wide">Nome Completo *</Label>
+                <Input value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))} placeholder="Nome completo" className="bg-background border-border" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground uppercase tracking-wide">Nome de Guerra</Label>
+                <Input value={form.nomeGuerra} onChange={e => setForm(f => ({ ...f, nomeGuerra: e.target.value }))} placeholder="Ex: Coltri, Silva..." className="bg-background border-border" />
+              </div>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground uppercase tracking-wide">Posto/Graduação *</Label>
@@ -426,22 +482,21 @@ export default function Bombeiros() {
                   <SelectValue placeholder="Selecione a equipe" />
                 </SelectTrigger>
                 <SelectContent>
-                  {EQUIPES.map(e => (
-                    <SelectItem key={e} value={e}>{e}</SelectItem>
-                  ))}
+                  {EQUIPES.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground uppercase tracking-wide">Data de Início *</Label>
               <Input type="date" value={form.dataInicio} onChange={e => setForm(f => ({ ...f, dataInicio: e.target.value }))} className="bg-background border-border" />
+              <p className="text-xs text-muted-foreground">Primeiro dia de serviço na prontidão atual — base para o cálculo de FMO.</p>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAdd(false)} className="border-border">Cancelar</Button>
-            <Button onClick={handleSubmit} disabled={createMutation.isPending} className="bg-primary hover:bg-primary/90 text-primary-foreground">
-              {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-              Cadastrar
+            <Button variant="outline" onClick={() => { setShowForm(false); setEditingId(null); setForm(EMPTY_FORM); }} className="border-border">Cancelar</Button>
+            <Button onClick={handleSubmit} disabled={isMutating} className="bg-primary hover:bg-primary/90 text-primary-foreground">
+              {isMutating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              {editingId ? "Salvar Alterações" : "Cadastrar"}
             </Button>
           </DialogFooter>
         </DialogContent>
