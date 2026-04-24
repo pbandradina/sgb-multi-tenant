@@ -42,8 +42,18 @@ function getSiglaColor(sigla: string): string {
   return config?.cor ?? "bg-slate-700 text-white";
 }
 
+// Formata data como YYYY-MM-DD para comparação com banco
 function toDateStr(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+// Parse de string "YYYY-MM-DD" para Date sem conversão de timezone (evita bug GMT-3)
+// new Date('2025-01-01') em GMT-3 = 31/Dez/2024 às 21h — ERRADO
+// new Date(2025, 0, 1) = 01/Jan/2025 local — CORRETO
+function parseDateLocal(str: string | Date): Date {
+  if (str instanceof Date) return new Date(str.getFullYear(), str.getMonth(), str.getDate());
+  const parts = str.split('T')[0].split('-').map(Number);
+  return new Date(parts[0], parts[1] - 1, parts[2]);
 }
 
 function formatDayLabel(date: Date): string {
@@ -107,7 +117,7 @@ export default function Escalas() {
     if (!bombeiros) return map;
     for (const b of bombeiros) {
       if (b.equipe === "Administrativo") continue;
-      const d = new Date(b.dataInicio);
+      const d = parseDateLocal(b.dataInicio); // usa parseDateLocal para evitar bug GMT-3
       if (!map[b.equipe] || d < map[b.equipe]) map[b.equipe] = d;
     }
     return map;
@@ -121,8 +131,8 @@ export default function Escalas() {
       const af = (item as any).afastamento;
       const bom = (item as any).bombeiro;
       if (!af || !bom) continue;
-      const inicio = new Date(af.dataInicio);
-      const fim = new Date(af.dataFim);
+      const inicio = parseDateLocal(af.dataInicio); // parseDateLocal evita bug GMT-3
+      const fim = parseDateLocal(af.dataFim);
       const mesInicio = new Date(year, month, 1);
       const mesFim = new Date(year, month + 1, 0);
       const start = inicio < mesInicio ? mesInicio : inicio;
