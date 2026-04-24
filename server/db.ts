@@ -428,13 +428,14 @@ export async function getEquipeBombeiroNaData(bombeiroId: number, quartelId: num
 // Siglas que interrompem a sequência de serviços consecutivos
 const INTERRUPT_SIGLAS = new Set(['F', 'LP', 'DS', 'LT', 'D', 'LTS', 'C', 'CFS', 'CAS', 'EAP', 'TAF']);
 
-// Ciclo fixo: índice 0=Verde, 1=Amarela, 2=Azul
+// Ciclo contínuo: referência 01/Jan/2026 = Verde (idx=0)
+// Verde → Amarela → Azul → Verde → ... (1 dia cada, sem reiniciar no ano)
 const CYCLE_EQUIPES = ["Prontidão Verde", "Prontidão Amarela", "Prontidão Azul"] as const;
-const CYCLE_REFERENCE_MS = new Date(2025, 0, 1).getTime(); // 01/Jan/2025
+const CYCLE_REFERENCE_SERVER_MS = new Date(2026, 0, 1).getTime(); // 01/Jan/2026 = Verde
 
 function getProntidaoDoDiaServer(date: Date): string {
   const target = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
-  const diffDays = Math.round((target - CYCLE_REFERENCE_MS) / (1000 * 60 * 60 * 24));
+  const diffDays = Math.round((target - CYCLE_REFERENCE_SERVER_MS) / (1000 * 60 * 60 * 24));
   const idx = ((diffDays % 3) + 3) % 3;
   return CYCLE_EQUIPES[idx];
 }

@@ -2,6 +2,7 @@
  * Testes unitários para a lógica de cálculo de FMO
  * Regra: 1 FMO a cada 9 serviços consecutivos
  * Sequência é interrompida por afastamentos: F, LP, DS, LT, D, LTS, C, CFS, CAS, EAP, TAF
+ * Referência do ciclo: 01/Jan/2026 = Verde (idx=0), ciclo contínuo
  */
 import { describe, expect, it } from "vitest";
 
@@ -9,7 +10,8 @@ import { describe, expect, it } from "vitest";
 
 const INTERRUPT_SIGLAS = new Set(['F', 'LP', 'DS', 'LT', 'D', 'LTS', 'C', 'CFS', 'CAS', 'EAP', 'TAF']);
 const CYCLE_EQUIPES = ["Prontidão Verde", "Prontidão Amarela", "Prontidão Azul"] as const;
-const CYCLE_REFERENCE_MS = new Date(2025, 0, 1).getTime();
+// 01/Jan/2026 = Verde (idx=0), ciclo contínuo sem reiniciar no ano
+const CYCLE_REFERENCE_MS = new Date(2026, 0, 1).getTime();
 
 function getProntidaoDoDia(date: Date): string {
   const target = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
@@ -37,17 +39,12 @@ interface ResultadoFMO {
   periodosConcessao: Array<{ numero: number; dataInicio: string; dataFim: string }>;
 }
 
-/**
- * Simula o cálculo de FMO para uma equipe, com afastamentos opcionais.
- * Retorna quantas FMOs foram geradas e o ciclo atual.
- */
 function calcularFMOPura(
   equipe: string,
   dataInicio: Date,
   dataFim: Date,
   afastamentos: AfastamentoSimples[] = []
 ): ResultadoFMO {
-  // Construir mapa de data → sigla de afastamento
   const afastamentoNoDia = new Map<string, string>();
   for (const af of afastamentos) {
     for (let d = new Date(af.dataInicio); d <= af.dataFim; d.setDate(d.getDate() + 1)) {
@@ -58,7 +55,6 @@ function calcularFMOPura(
     }
   }
 
-  // Coletar dias de serviço
   const diasDeServico: Date[] = [];
   for (let d = new Date(dataInicio); d <= dataFim; d.setDate(d.getDate() + 1)) {
     if (getProntidaoDoDia(d) === equipe) {
@@ -66,7 +62,6 @@ function calcularFMOPura(
     }
   }
 
-  // Calcular FMO com lógica de interrupção
   let fmoGeradas = 0;
   let cicloAtual = 0;
   let dataInicioConquista: Date | null = null;
@@ -102,39 +97,46 @@ function calcularFMOPura(
 
 // ─── Testes ───────────────────────────────────────────────────────────────────
 
-describe("Ciclo fixo de prontidões", () => {
-  it("01/Jan/2025 deve ser Prontidão Verde", () => {
-    expect(getProntidaoDoDia(new Date(2025, 0, 1))).toBe("Prontidão Verde");
+describe("Ciclo fixo de prontidões (ref: 01/Jan/2026=Verde)", () => {
+  // Com ref=01/Jan/2026=Verde:
+  // Jan/2025: diff=-365 → idx=1=Amarela, diff=-364 → idx=2=Azul, diff=-363 → idx=0=Verde
+  // Portanto: 01/Jan/2025=Amarela, 02/Jan=Azul, 03/Jan=Verde
+  it("01/Jan/2026 deve ser Prontidão Verde (referência)", () => {
+    expect(getProntidaoDoDia(new Date(2026, 0, 1))).toBe("Prontidão Verde");
   });
 
-  it("02/Jan/2025 deve ser Prontidão Amarela", () => {
-    expect(getProntidaoDoDia(new Date(2025, 0, 2))).toBe("Prontidão Amarela");
+  it("02/Jan/2026 deve ser Prontidão Amarela", () => {
+    expect(getProntidaoDoDia(new Date(2026, 0, 2))).toBe("Prontidão Amarela");
   });
 
-  it("03/Jan/2025 deve ser Prontidão Azul", () => {
-    expect(getProntidaoDoDia(new Date(2025, 0, 3))).toBe("Prontidão Azul");
+  it("03/Jan/2026 deve ser Prontidão Azul", () => {
+    expect(getProntidaoDoDia(new Date(2026, 0, 3))).toBe("Prontidão Azul");
   });
 
-  it("04/Jan/2025 deve ser Prontidão Verde (ciclo reinicia)", () => {
-    expect(getProntidaoDoDia(new Date(2025, 0, 4))).toBe("Prontidão Verde");
+  it("04/Jan/2026 deve ser Prontidão Verde (ciclo continua)", () => {
+    expect(getProntidaoDoDia(new Date(2026, 0, 4))).toBe("Prontidão Verde");
+  });
+
+  it("03/Jan/2025 deve ser Prontidão Verde (retroativo)", () => {
+    // diff=-363, (-363 % 3 + 3) % 3 = 0 => Verde
+    expect(getProntidaoDoDia(new Date(2025, 0, 3))).toBe("Prontidão Verde");
   });
 });
 
 describe("Cálculo de FMO sem afastamentos", () => {
   it("9 serviços consecutivos = 1 FMO", () => {
-    // Verde serve nos dias 1, 4, 7, 10, 13, 16, 19, 22, 25 de Jan/2025
+    // Verde em Jan/2025: dias 3,6,9,12,15,18,21,24,27,30 = 10 dias → 1 FMO + 1 no ciclo
     const resultado = calcularFMOPura(
       "Prontidão Verde",
       new Date(2025, 0, 1),
       new Date(2025, 0, 31)
     );
-    // Jan/2025: Verde nos dias 1,4,7,10,13,16,19,22,25,28,31 = 11 dias → 1 FMO completa + 2 no ciclo
     expect(resultado.fmoGeradas).toBe(1);
-    expect(resultado.cicloAtual).toBe(2);
+    expect(resultado.cicloAtual).toBe(1);
   });
 
   it("18 serviços consecutivos = 2 FMOs", () => {
-    // Verde: Jan+Fev/2025 terá 18+ dias
+    // Verde Jan+Fev/2025: 10+9=19 dias → 2 FMOs + 1 no ciclo
     const resultado = calcularFMOPura(
       "Prontidão Verde",
       new Date(2025, 0, 1),
@@ -144,11 +146,11 @@ describe("Cálculo de FMO sem afastamentos", () => {
   });
 
   it("menos de 9 serviços = 0 FMOs", () => {
-    // Verde: apenas 3 dias de serviço
+    // Verde em Jan/2025 até dia 9: dias 3,6,9 = 3 dias
     const resultado = calcularFMOPura(
       "Prontidão Verde",
       new Date(2025, 0, 1),
-      new Date(2025, 0, 7) // 7 dias: Verde nos dias 1, 4, 7 = 3 dias
+      new Date(2025, 0, 9)
     );
     expect(resultado.fmoGeradas).toBe(0);
     expect(resultado.cicloAtual).toBe(3);
@@ -157,62 +159,58 @@ describe("Cálculo de FMO sem afastamentos", () => {
 
 describe("Cálculo de FMO com afastamentos interruptores", () => {
   it("Férias (F) no 5º serviço deve zerar a sequência", () => {
-    // Verde: Jan/2025 dias 1,4,7,10,13 (5 serviços), depois F no dia 13, depois 16,19,22,25,28,31
-    // Sem F: 11 dias → 1 FMO + 2 no ciclo
-    // Com F no dia 13 (5º serviço): sequência zerada, recomeça do 16
-    // Após F: dias 16,19,22,25,28,31 = 6 dias → 0 FMOs adicionais
+    // Verde Jan/2025: 3,6,9,12,15,18,21,24,27,30
+    // F no dia 15 (5º serviço): sequência zerada, recomeça do 18
+    // Após F: 18,21,24,27,30 = 5 dias → 0 FMOs
     const resultado = calcularFMOPura(
       "Prontidão Verde",
       new Date(2025, 0, 1),
       new Date(2025, 0, 31),
-      [{ tipo: "F", dataInicio: new Date(2025, 0, 13), dataFim: new Date(2025, 0, 13) }]
+      [{ tipo: "F", dataInicio: new Date(2025, 0, 15), dataFim: new Date(2025, 0, 15) }]
     );
     expect(resultado.fmoGeradas).toBe(0);
-    expect(resultado.cicloAtual).toBe(6); // 16,19,22,25,28,31 = 6 dias após interrupção
+    expect(resultado.cicloAtual).toBe(5);
   });
 
   it("LP no 9º serviço deve impedir a FMO (sequência zerada antes de completar)", () => {
-    // Verde: dias 1,4,7,10,13,16,19,22,25 = 9 dias. LP no dia 25 (9º) interrompe.
+    // Verde Jan/2025: 3,6,9,12,15,18,21,24,27 = 9 dias. LP no dia 27 (9º) interrompe.
     const resultado = calcularFMOPura(
       "Prontidão Verde",
       new Date(2025, 0, 1),
       new Date(2025, 0, 31),
-      [{ tipo: "LP", dataInicio: new Date(2025, 0, 25), dataFim: new Date(2025, 0, 25) }]
+      [{ tipo: "LP", dataInicio: new Date(2025, 0, 27), dataFim: new Date(2025, 0, 27) }]
     );
     // LP no 9º dia: interrompe antes de completar, ciclo zera
-    // Depois: dias 28, 31 = 2 dias
+    // Depois: dia 30 = 1 dia
     expect(resultado.fmoGeradas).toBe(0);
-    expect(resultado.cicloAtual).toBe(2);
-  });
-
-  it("FMO usada (tipo FMO) não interrompe a sequência", () => {
-    // Verde: Jan/2025 com FMO no dia 13 (5º serviço, índice 4)
-    // FMO não interrompe → sequência continua normalmente
-    // Dias Verde Jan/2025: 1,4,7,10,13,16,19,22,25,28,31 = 11 dias
-    // FMO no dia 13 não conta como serviço nem interrompe
-    // Sequência: 1,4,7,10 (4 dias) + FMO(13 não conta) + 16,19,22,25,28 (5 dias) = 9 → 1 FMO, depois 31 = 1 no ciclo
-    const resultado = calcularFMOPura(
-      "Prontidão Verde",
-      new Date(2025, 0, 1),
-      new Date(2025, 0, 31),
-      [{ tipo: "FMO", dataInicio: new Date(2025, 0, 13), dataFim: new Date(2025, 0, 13) }]
-    );
-    // FMO não interrompe: 10 dias válidos (dia 13 não conta) → 1 FMO (primeiros 9) + 1 no ciclo
-    expect(resultado.fmoGeradas).toBe(1);
     expect(resultado.cicloAtual).toBe(1);
   });
 
-  it("PA (Plantão Administrativo) não interrompe a sequência", () => {
+  it("FMO usada (tipo FMO) não interrompe a sequência", () => {
+    // Verde Jan/2025: 3,6,9,12,15,18,21,24,27,30 = 10 dias
+    // FMO no dia 15 (5º serviço): não conta, não interrompe
+    // Sequência: 3,6,9,12 (4) + FMO(15 não conta) + 18,21,24,27,30 (5) = 9 → 1 FMO, depois nada
+    const resultado = calcularFMOPura(
+      "Prontidão Verde",
+      new Date(2025, 0, 1),
+      new Date(2025, 0, 31),
+      [{ tipo: "FMO", dataInicio: new Date(2025, 0, 15), dataFim: new Date(2025, 0, 15) }]
+    );
+    expect(resultado.fmoGeradas).toBe(1);
+    expect(resultado.cicloAtual).toBe(0);
+  });
+
+  it("PA (Pausa Autorizada) não interrompe a sequência", () => {
     // PA não está na lista de interruptores
     const resultado = calcularFMOPura(
       "Prontidão Verde",
       new Date(2025, 0, 1),
       new Date(2025, 0, 31),
-      [{ tipo: "PA", dataInicio: new Date(2025, 0, 13), dataFim: new Date(2025, 0, 13) }]
+      [{ tipo: "PA", dataInicio: new Date(2025, 0, 15), dataFim: new Date(2025, 0, 15) }]
     );
-    // PA não interrompe → 11 dias → 1 FMO + 2 no ciclo
+    // PA não interrompe → 10 dias → 1 FMO + 1 no ciclo
     expect(resultado.fmoGeradas).toBe(1);
-    expect(resultado.cicloAtual).toBe(2);
+    expect(resultado.cicloAtual).toBe(1);
   });
 
   it("DS (Dispensa de Serviço) interrompe a sequência", () => {
@@ -220,15 +218,16 @@ describe("Cálculo de FMO com afastamentos interruptores", () => {
       "Prontidão Verde",
       new Date(2025, 0, 1),
       new Date(2025, 0, 31),
-      [{ tipo: "DS", dataInicio: new Date(2025, 0, 13), dataFim: new Date(2025, 0, 13) }]
+      [{ tipo: "DS", dataInicio: new Date(2025, 0, 15), dataFim: new Date(2025, 0, 15) }]
     );
     expect(resultado.fmoGeradas).toBe(0);
-    expect(resultado.cicloAtual).toBe(6);
+    expect(resultado.cicloAtual).toBe(5);
   });
 });
 
 describe("Períodos de concessão", () => {
   it("deve registrar o período correto para a FMO gerada", () => {
+    // Verde Jan/2025: 3,6,9,12,15,18,21,24,27 = 9 dias → 1 FMO
     const resultado = calcularFMOPura(
       "Prontidão Verde",
       new Date(2025, 0, 1),
@@ -236,9 +235,9 @@ describe("Períodos de concessão", () => {
     );
     expect(resultado.periodosConcessao).toHaveLength(1);
     expect(resultado.periodosConcessao[0].numero).toBe(1);
-    // Primeiro serviço Verde: 01/Jan/2025
-    expect(resultado.periodosConcessao[0].dataInicio).toBe("2025-01-01");
-    // Nono serviço Verde: 25/Jan/2025
-    expect(resultado.periodosConcessao[0].dataFim).toBe("2025-01-25");
+    // Primeiro serviço Verde em Jan/2025: 03/Jan
+    expect(resultado.periodosConcessao[0].dataInicio).toBe("2025-01-03");
+    // Nono serviço Verde em Jan/2025: 27/Jan
+    expect(resultado.periodosConcessao[0].dataFim).toBe("2025-01-27");
   });
 });

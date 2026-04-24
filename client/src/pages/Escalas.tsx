@@ -18,9 +18,10 @@ const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Ag
 const MESES_ABREV = ["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OUT","NOV","DEZ"];
 const DIAS_SEMANA = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
 
-// ─── Ciclo fixo de prontidões ─────────────────────────────────────────────────
-// 01/Jan/2025 = Verde (índice 0), 02/Jan = Amarela (1), 03/Jan = Azul (2)
-const CYCLE_REFERENCE_MS = new Date(2025, 0, 1).getTime();
+// ─── Ciclo de prontidões ──────────────────────────────────────────────────────
+// Ciclo contínuo: referência 01/Jan/2026 = Verde (idx=0)
+// Verde → Amarela → Azul → Verde → ... (1 dia cada)
+const CYCLE_REFERENCE_MS = new Date(2026, 0, 1).getTime(); // 01/Jan/2026 = Verde
 const CYCLE: Equipe[] = ["Prontidão Verde", "Prontidão Amarela", "Prontidão Azul"];
 
 const CYCLE_COLORS: Record<Equipe, { border: string; text: string; cellBg: string; badgeBg: string; label: string }> = {
@@ -31,6 +32,7 @@ const CYCLE_COLORS: Record<Equipe, { border: string; text: string; cellBg: strin
 };
 
 function getProntidaoDoDia(date: Date): Equipe {
+  // Ciclo contínuo: diff em dias a partir de 01/Jan/2026 (Verde)
   const target = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
   const diffDays = Math.round((target - CYCLE_REFERENCE_MS) / (1000 * 60 * 60 * 24));
   const idx = ((diffDays % 3) + 3) % 3;
@@ -362,7 +364,7 @@ export default function Escalas() {
         <div className="flex items-start gap-2 p-3 rounded-lg bg-secondary/30 border border-border">
           <span className="text-muted-foreground mt-0.5 flex-shrink-0 text-sm">ℹ</span>
           <p className="text-xs text-muted-foreground">
-            Ciclo fixo: <strong style={{ color: CYCLE_COLORS["Prontidão Verde"].text }}>VD</strong> (01/Jan) →{" "}
+            Ciclo contínuo: <strong style={{ color: CYCLE_COLORS["Prontidão Verde"].text }}>VD</strong> (01/Jan/2026) →{" "}
             <strong style={{ color: CYCLE_COLORS["Prontidão Amarela"].text }}>AM</strong> (02/Jan) →{" "}
             <strong style={{ color: CYCLE_COLORS["Prontidão Azul"].text }}>AZ</strong> (03/Jan) → repetindo.
             Clique em qualquer dia para registrar um afastamento diretamente na célula.
