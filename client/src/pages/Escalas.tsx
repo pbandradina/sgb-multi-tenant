@@ -289,57 +289,61 @@ export default function Escalas() {
                   style={hasBombeiroAtivo && colors ? { backgroundColor: colors.cellBg } : undefined}
                   onClick={date && day ? () => handleCellClick(date) : undefined}
                 >
-                  {day && colors && (
-                    <>
-                      {/* Número do dia */}
-                      <div
-                        className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm border-2 transition-all flex-shrink-0"
-                        style={{
-                          backgroundColor: isToday ? colors.border : colors.badgeBg,
-                          borderColor: colors.border,
-                          color: isToday ? "#fff" : colors.text,
-                          boxShadow: isToday ? `0 0 0 2px ${colors.border}40` : "none",
-                        }}
-                      >
-                        {day}
-                      </div>
-                      {/* Sigla da prontidão (pequena, abaixo do número) */}
-                      {hasBombeiroAtivo && (
-                        <span className="text-[8px] font-bold mt-0.5 leading-none" style={{ color: colors.text }}>
-                          {colors.label}
-                        </span>
-                      )}
-                      {/* Siglas de afastamentos */}
-                      {siglasDoDia.length > 0 && (
-                        <div className="w-full mt-1 flex flex-col gap-0.5 items-center">
-                          {siglasDoDia.slice(0, 3).map((item, i) => (
-                            <div key={i} className="flex flex-col items-center gap-0">
-                              <span
-                                title={item.sigla === 'FMO' && item.periodoConcessao
-                                  ? `${item.bombeiroNome} — FMO (período: ${item.periodoConcessao})`
-                                  : `${item.bombeiroNome} — ${item.sigla}`}
-                                className={`inline-flex items-center justify-center rounded text-[8px] font-black px-1 py-0.5 leading-none ${item.cor}`}
-                              >
-                                {item.sigla}
-                              </span>
-                              {item.sigla === 'FMO' && item.periodoConcessao && (
-                                <span
-                                  className="text-[7px] text-amber-400 font-semibold leading-tight text-center"
-                                  style={{ maxWidth: '56px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                                  title={item.periodoConcessao}
-                                >
-                                  {item.periodoConcessao}
-                                </span>
-                              )}
-                            </div>
-                          ))}
-                          {siglasDoDia.length > 3 && (
-                            <span className="text-[8px] text-muted-foreground font-medium">+{siglasDoDia.length - 3}</span>
+              {day && colors && (
+                <>
+                  {/* Número do dia */}
+                  <div
+                    className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm border-2 transition-all flex-shrink-0"
+                    style={{
+                      backgroundColor: isToday ? colors.border : colors.badgeBg,
+                      borderColor: colors.border,
+                      color: isToday ? "#fff" : colors.text,
+                      boxShadow: isToday ? `0 0 0 2px ${colors.border}40` : "none",
+                    }}
+                  >
+                    {day}
+                  </div>
+                  {/* Sigla da prontidão (pequena, abaixo do número) — só se não houver afastamento */}
+                  {hasBombeiroAtivo && siglasDoDia.length === 0 && (
+                    <span className="text-[8px] font-bold mt-0.5 leading-none" style={{ color: colors.text }}>
+                      {colors.label}
+                    </span>
+                  )}
+                  {/* Siglas de afastamentos — sempre visíveis, independente da equipe */}
+                  {siglasDoDia.length > 0 ? (
+                    <div className="w-full mt-1 flex flex-col gap-0.5 items-center">
+                      {siglasDoDia.slice(0, 3).map((item, i) => (
+                        <div key={i} className="flex flex-col items-center gap-0">
+                          <span
+                            title={item.sigla === 'FMO' && item.periodoConcessao
+                              ? `${item.bombeiroNome} — FMO (período: ${item.periodoConcessao})`
+                              : `${item.bombeiroNome} — ${item.sigla}`}
+                            className={`inline-flex items-center justify-center rounded text-[9px] font-black px-1.5 py-0.5 leading-none ${item.cor}`}
+                          >
+                            {item.sigla}
+                          </span>
+                          {item.periodoConcessao && (
+                            <span
+                              className="text-[8px] font-bold leading-tight text-center mt-0.5"
+                              style={{ color: '#a855f7', maxWidth: '60px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                              title={item.periodoConcessao}
+                            >
+                              {item.periodoConcessao}
+                            </span>
                           )}
                         </div>
+                      ))}
+                      {siglasDoDia.length > 3 && (
+                        <span className="text-[8px] text-muted-foreground font-medium">+{siglasDoDia.length - 3}</span>
                       )}
-                    </>
+                    </div>
+                  ) : hasBombeiroAtivo && (
+                    // Quando não há afastamento, mostrar sigla da equipe abaixo do número
+                    // (já renderizado acima, este bloco é apenas placeholder)
+                    null
                   )}
+                </>
+              )}
                 </div>
               );
             })}
