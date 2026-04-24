@@ -76,6 +76,8 @@ export default function Escalas() {
   const [selectedBombeiroId, setSelectedBombeiroId] = useState<number | null>(null);
   const [selectedSigla, setSelectedSigla] = useState<string>("");
   const [periodoConcessao, setPeriodoConcessao] = useState<string>("");
+  // Bombeiro selecionado no filtro do cabeçalho
+  const [filteredBombeiroId, setFilteredBombeiroId] = useState<number | null>(null);
 
   useEffect(() => {
     if (!loading && !isAuthenticated) { window.location.href = getLoginUrl(); return; }
@@ -187,7 +189,8 @@ export default function Escalas() {
 
   function handleCellClick(date: Date) {
     setModal({ date, dateStr: toDateStr(date) });
-    setSelectedBombeiroId(null);
+    // Pré-selecionar o bombeiro filtrado no modal
+    setSelectedBombeiroId(filteredBombeiroId);
     setSelectedSigla("");
     setPeriodoConcessao("");
   }
@@ -221,16 +224,51 @@ export default function Escalas() {
       <div className="space-y-5">
         {/* Header */}
         <div className="flex items-center justify-between flex-wrap gap-3">
-          <div className="flex items-center gap-3">
-            <Button variant="outline" size="sm" onClick={prevMonth} className="border-border">
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
-            <h2 className="text-lg font-semibold text-foreground min-w-[180px] text-center" style={{ fontFamily: "Montserrat, sans-serif" }}>
-              {MESES[month]} {year}
-            </h2>
-            <Button variant="outline" size="sm" onClick={nextMonth} className="border-border">
-              <ChevronRight className="w-4 h-4" />
-            </Button>
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Navegação de mês */}
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={prevMonth} className="border-border">
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+              <h2 className="text-lg font-semibold text-foreground min-w-[160px] text-center" style={{ fontFamily: "Montserrat, sans-serif" }}>
+                {MESES[month]} {year}
+              </h2>
+              <Button variant="outline" size="sm" onClick={nextMonth} className="border-border">
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
+            {/* Seletor de bombeiro */}
+            {bombeiros && bombeiros.length > 0 && (
+              <div className="flex items-center gap-2">
+                <select
+                  className="bg-secondary border border-border rounded-lg px-3 py-1.5 text-sm text-foreground min-w-[200px] cursor-pointer"
+                  value={filteredBombeiroId ?? ""}
+                  onChange={e => setFilteredBombeiroId(Number(e.target.value) || null)}
+                >
+                  <option value="">Todos os bombeiros</option>
+                  {[...bombeiros]
+                    .sort((a, b) => a.equipe.localeCompare(b.equipe) || a.nome.localeCompare(b.nome))
+                    .map(b => {
+                      const eq = b.equipe.replace("Prontidão ", "");
+                      const label = eq === "Administrativo" ? "ADM" : eq.substring(0, 2).toUpperCase();
+                      return (
+                        <option key={b.id} value={b.id}>
+                          [{label}] {b.nome.trim()} ({b.posto})
+                        </option>
+                      );
+                    })}
+                </select>
+                {filteredBombeiroId && (
+                  <button
+                    onClick={() => setFilteredBombeiroId(null)}
+                    className="text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded border border-border"
+                    title="Limpar filtro"
+                  >
+                    × Limpar
+                  </button>
+                )}
+              </div>
+            )}
           </div>
           {/* Legenda */}
           <div className="flex items-center gap-3 flex-wrap">
@@ -276,7 +314,20 @@ export default function Escalas() {
                 hasBombeiroAtivo = dateOnly >= inicioOnly;
               }
 
-              const siglasDoDia = date ? (afastamentosPorDia[toDateStr(date)] ?? []) : [];
+              // Quando há filtro de bombeiro, mostrar apenas os afastamentos dele
+              const todasSiglasDoDia = date ? (afastamentosPorDia[toDateStr(date)] ?? []) : [];
+              const bombeiroFiltrado = filteredBombeiroId ? bombeiros?.find(b => b.id === filteredBombeiroId) : null;
+              const siglasDoDia = filteredBombeiroId
+                ? todasSiglasDoDia.filter(s => {
+                    const bom = bombeiros?.find(b => b.nome.trim() === s.bombeiroNome.trim());
+                    return bom?.id === filteredBombeiroId;
+                  })
+                : todasSiglasDoDia;
+
+              // Quando há filtro, destacar apenas os dias da equipe do bombeiro selecionado
+              const hasBombeiroAtivoFiltrado = filteredBombeiroId
+                ? (bombeiroFiltrado && prontidao === bombeiroFiltrado.equipe && hasBombeiroAtivo)
+                : hasBombeiroAtivo;
 
               return (
                 <div
@@ -286,7 +337,7 @@ export default function Escalas() {
                     !day && "bg-secondary/5",
                     day && "cursor-pointer hover:brightness-110 transition-all",
                   )}
-                  style={hasBombeiroAtivo && colors ? { backgroundColor: colors.cellBg } : undefined}
+                  style={hasBombeiroAtivoFiltrado && colors ? { backgroundColor: colors.cellBg } : undefined}
                   onClick={date && day ? () => handleCellClick(date) : undefined}
                 >
               {day && colors && (
@@ -304,7 +355,7 @@ export default function Escalas() {
                     {day}
                   </div>
                   {/* Sigla da prontidão (pequena, abaixo do número) — só se não houver afastamento */}
-                  {hasBombeiroAtivo && siglasDoDia.length === 0 && (
+                  {hasBombeiroAtivoFiltrado && siglasDoDia.length === 0 && (
                     <span className="text-[8px] font-bold mt-0.5 leading-none" style={{ color: colors.text }}>
                       {colors.label}
                     </span>
@@ -337,7 +388,7 @@ export default function Escalas() {
                         <span className="text-[8px] text-muted-foreground font-medium">+{siglasDoDia.length - 3}</span>
                       )}
                     </div>
-                  ) : hasBombeiroAtivo && (
+                  ) : hasBombeiroAtivoFiltrado && (
                     // Quando não há afastamento, mostrar sigla da equipe abaixo do número
                     // (já renderizado acima, este bloco é apenas placeholder)
                     null
