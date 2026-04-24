@@ -189,8 +189,8 @@ export async function getBombeiroById(id: number, quartelId: number) {
 export async function createBombeiro(data: InsertBombeiro) {
   const db = await getDb();
   if (!db) throw new Error("DB unavailable");
-  const fixed = { ...data, dataInicio: fixDateString(data.dataInicio) as string };
-  const result = await db.insert(bombeiros).values(fixed);
+  // NÃO usar fixDateString: o driver mysql2 salva strings "YYYY-MM-DD" corretamente sem +1 dia
+  const result = await db.insert(bombeiros).values(data);
   return result;
 }
 
@@ -355,12 +355,7 @@ export async function getHistoricoByQuartel(quartelId: number) {
 }
 
 export async function createHistorico(data: InsertBombeiroProntidaoHistorico) {
-  // Corrige offset de timezone antes de salvar
-  data = {
-    ...data,
-    dataInicio: fixDateString(data.dataInicio) as string,
-    dataFim: data.dataFim ? fixDateString(data.dataFim) as string : undefined,
-  };
+  // NÃO usar fixDateString: o driver mysql2 salva strings "YYYY-MM-DD" corretamente sem +1 dia
   const db = await getDb();
   if (!db) throw new Error("DB unavailable");
   // Fechar o registro vigente anterior do mesmo bombeiro (sem dataFim)
@@ -450,11 +445,11 @@ function contarDiasCicloNoIntervalo(equipe: string, periodoInicio: Date, periodo
 }
 
 // Formata data como DD/MM/YYYY sem conversão de timezone
+const MESES_ABREV = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
 function formatDateBR(date: Date): string {
   const d = String(date.getDate()).padStart(2, "0");
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const y = date.getFullYear();
-  return `${d}/${m}/${y}`;
+  const mes = MESES_ABREV[date.getMonth()];
+  return `${d}${mes}`;
 }
 
 // Corrige o offset de timezone do MySQL: adiciona 1 dia à string YYYY-MM-DD

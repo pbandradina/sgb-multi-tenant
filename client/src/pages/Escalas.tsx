@@ -128,6 +128,15 @@ export default function Escalas() {
     onError: (err) => toast.error(err.message),
   });
 
+  const deleteAfastamento = trpc.afastamento.delete.useMutation({
+    onSuccess: () => {
+      toast.success("Afastamento removido!");
+      refetchAfastamentos();
+      utils.afastamento.listByMes.invalidate();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
   const prevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
   const nextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
 
@@ -451,6 +460,55 @@ export default function Escalas() {
               Selecione a sigla para {modal ? formatDayLabel(modal.date) : ""}:
             </DialogTitle>
           </DialogHeader>
+
+          {/* Afastamentos já registrados no dia — com opção de excluir */}
+          {modal && (() => {
+            const afastamentosDoDia = afastamentosMes?.filter(item => {
+              const af = (item as any).afastamento ?? item;
+              const ini = parseDateLocal(af.dataInicio as any);
+              const fim = parseDateLocal(af.dataFim as any);
+              const d = modal.date;
+              return d >= ini && d <= fim;
+            }) ?? [];
+            if (afastamentosDoDia.length === 0) return null;
+            return (
+              <div className="space-y-1">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Afastamentos registrados neste dia</p>
+                <div className="flex flex-col gap-1">
+                  {afastamentosDoDia.map((item, idx) => {
+                    const af = (item as any).afastamento ?? item;
+                    const bom = bombeiros?.find(b => b.id === af.bombeiroId);
+                    const siglaConfig = SIGLAS_AFASTAMENTO.find(s => s.sigla === af.tipo);
+                    return (
+                      <div key={af.id ?? idx} className="flex items-center justify-between gap-2 rounded-lg px-3 py-2 bg-secondary/30 border border-border">
+                        <div className="flex items-center gap-2">
+                          <span className={cn("inline-flex items-center justify-center rounded px-1.5 py-0.5 text-[10px] font-black leading-none", siglaConfig?.cor ?? "bg-slate-700 text-white")}>
+                            {af.tipo}
+                          </span>
+                          <span className="text-xs text-foreground">{bom?.nome ?? `Bombeiro #${af.bombeiroId}`}</span>
+                          {af.periodoConcessao && (
+                            <span className="text-[10px] text-purple-400">{af.periodoConcessao}</span>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => {
+                            if (confirm(`Remover ${af.tipo} de ${bom?.nome ?? 'bombeiro'}?`)) {
+                              deleteAfastamento.mutate({ id: af.id, quartelId: quartelId! });
+                            }
+                          }}
+                          className="text-destructive hover:text-destructive/80 text-xs font-bold px-2 py-0.5 rounded hover:bg-destructive/10 transition-colors flex-shrink-0"
+                          title="Remover afastamento"
+                        >
+                          ✕ Remover
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="border-t border-border pt-2" />
+              </div>
+            );
+          })()}
 
           {/* Grid de siglas — igual ao print de referência */}
           <div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto pr-1">
