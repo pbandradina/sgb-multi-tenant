@@ -316,12 +316,8 @@ export async function getAfastamentosAtivos(quartelId: number, hoje: string) {
 }
 
 export async function createAfastamento(data: InsertAfastamento) {
-  // Corrige offset de timezone antes de salvar
-  data = {
-    ...data,
-    dataInicio: fixDateString(data.dataInicio) as string,
-    dataFim: fixDateString(data.dataFim) as string,
-  };
+  // NÃO usar fixDateString aqui: o driver mysql2 salva strings "YYYY-MM-DD" corretamente
+  // fixDateString adicionava +1 dia causando bug: clicar no dia 19 salvava como dia 20
   const db = await getDb();
   if (!db) throw new Error("DB unavailable");
   return db.insert(afastamentos).values(data);

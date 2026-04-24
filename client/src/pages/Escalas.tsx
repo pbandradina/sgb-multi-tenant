@@ -99,6 +99,22 @@ export default function Escalas() {
 
   const utils = trpc.useUtils();
 
+  // Buscar saldo FMO do bombeiro selecionado para auto-preencher o período de concessão
+  const { data: saldoFMO } = trpc.fo.saldoBombeiro.useQuery(
+    { bombeiroId: selectedBombeiroId!, quartelId: quartelId! },
+    { enabled: !!selectedBombeiroId && !!quartelId && selectedSigla === "FMO" }
+  );
+
+  // Auto-preencher período de concessão quando saldo FMO carrega e não foi preenchido manualmente
+  useEffect(() => {
+    if (selectedSigla !== "FMO" || !saldoFMO) return;
+    if (periodoConcessao) return; // já preenchido manualmente
+    const proxPeriodo = saldoFMO.periodosConcessao[saldoFMO.fmoUsadas];
+    if (proxPeriodo) {
+      setPeriodoConcessao(`${proxPeriodo.dataInicio} a ${proxPeriodo.dataFim}`);
+    }
+  }, [saldoFMO, selectedSigla]);
+
   const createAfastamento = trpc.afastamento.create.useMutation({
     onSuccess: () => {
       toast.success("Afastamento registrado!");
@@ -441,7 +457,7 @@ export default function Escalas() {
             {SIGLAS_AFASTAMENTO.map(s => (
               <button
                 key={s.sigla}
-                onClick={() => setSelectedSigla(s.sigla)}
+                onClick={() => { setSelectedSigla(s.sigla); if (s.sigla !== 'FMO') setPeriodoConcessao(''); }}
                 className={cn(
                   "flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium border-2 transition-all text-left",
                   selectedSigla === s.sigla
@@ -456,6 +472,22 @@ export default function Escalas() {
                 <span className="text-xs">{s.label}</span>
               </button>
             ))}
+            {/* Opção Limpar seleção */}
+            <button
+              onClick={() => { setSelectedSigla(''); setPeriodoConcessao(''); }}
+              className={cn(
+                "flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium border-2 transition-all text-left col-span-2",
+                selectedSigla === ''
+                  ? "border-destructive ring-2 ring-destructive/30"
+                  : "border-transparent",
+                "bg-secondary/20 text-muted-foreground hover:bg-secondary/50"
+              )}
+            >
+              <span className="inline-flex items-center justify-center rounded px-1.5 py-0.5 text-[10px] font-black leading-none flex-shrink-0 bg-slate-700 text-slate-300">
+                ✕
+              </span>
+              <span className="text-xs">Limpar seleção</span>
+            </button>
           </div>
 
           {/* Seletor de bombeiro */}
@@ -488,14 +520,22 @@ export default function Escalas() {
           {/* Campo período de concessão (apenas para FMO) */}
           {selectedSigla === "FMO" && (
             <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">Período de concessão (ex: 01FEV a 09FEV)</label>
+              <label className="text-xs text-muted-foreground flex items-center gap-1">
+                Período de concessão
+                {saldoFMO && periodoConcessao && (
+                  <span className="text-[10px] text-purple-400 font-medium">(preenchido automaticamente)</span>
+                )}
+              </label>
               <input
                 type="text"
                 className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground"
-                placeholder="Ex: 01FEV a 09FEV"
+                placeholder={saldoFMO?.periodosConcessao?.length ? `Ex: ${saldoFMO.periodosConcessao[0]?.dataInicio} a ${saldoFMO.periodosConcessao[0]?.dataFim}` : "Ex: 01FEV a 09FEV"}
                 value={periodoConcessao}
                 onChange={e => setPeriodoConcessao(e.target.value)}
               />
+              {saldoFMO && saldoFMO.saldoFMO <= 0 && (
+                <p className="text-[10px] text-amber-400">Atenção: este bombeiro não tem saldo de FMO disponível.</p>
+              )}
             </div>
           )}
 
