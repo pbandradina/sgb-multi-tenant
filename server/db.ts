@@ -418,6 +418,8 @@ export async function getEquipeBombeiroNaData(bombeiroId: number, quartelId: num
 
 // Siglas que interrompem a sequência de serviços consecutivos
 const INTERRUPT_SIGLAS = new Set(['F', 'LP', 'DS', 'LT', 'D', 'LTS', 'C', 'CFS', 'CAS', 'EAP', 'TAF']);
+// Siglas que NÃO contam como serviço mas também NÃO interrompem o ciclo (pausa)
+const PAUSE_SIGLAS = new Set(['PA', 'FMO', 'FO', 'AG', 'ME', 'EX', 'VD', 'AM', 'AZ']);
 
 // Ciclo contínuo: referência 01/Jan/2026 = Verde (idx=0)
 // Verde → Amarela → Azul → Verde → ... (1 dia cada, sem reiniciar no ano)
@@ -571,9 +573,8 @@ export async function calcularSaldoFMO(bombeiroId: number, quartelId: number) {
       // Afastamento interruptor: zerar a sequência
       cicloAtual = 0;
       dataInicioConquista = null;
-    } else if (siglaAfastamento === 'FMO') {
-      // FMO usada: não interrompe nem conta como serviço
-      // (apenas registra o uso, não afeta a sequência)
+    } else if (siglaAfastamento && PAUSE_SIGLAS.has(siglaAfastamento)) {
+      // PA, FMO, AG, ME, EX: pausa — não conta como serviço, não zera o ciclo
     } else {
       // Dia de serviço válido (sem afastamento interruptor)
       if (cicloAtual === 0) dataInicioConquista = data;
