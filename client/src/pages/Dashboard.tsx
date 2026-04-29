@@ -6,9 +6,20 @@ import { useEffect } from "react";
 import { useLocation } from "wouter";
 import { AppLayout } from "@/components/AppLayout";
 import { TeamBadge } from "@/components/TeamBadge";
-import { Loader2, Users, Calendar, AlertTriangle, TrendingUp, Clock, UserX } from "lucide-react";
+import { Loader2, Users, AlertTriangle, TrendingUp, Clock, UserX } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+
+// Ciclo de prontidões: referência 01/Jan/2026 = Verde
+const CYCLE_EQUIPES = ['Prontidão Verde', 'Prontidão Amarela', 'Prontidão Azul'] as const;
+const CYCLE_REFERENCE = new Date(2026, 0, 1).getTime(); // 01/Jan/2026 local
+
+function getProntidaoHoje(): string {
+  const hoje = new Date();
+  const hojeMs = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate()).getTime();
+  const diffDays = Math.round((hojeMs - CYCLE_REFERENCE) / 86400000);
+  const idx = ((diffDays % 3) + 3) % 3;
+  return CYCLE_EQUIPES[idx];
+}
 
 export default function Dashboard() {
   const { loading, isAuthenticated } = useAuth();
@@ -53,7 +64,16 @@ export default function Dashboard() {
   bombeiros?.forEach(b => { if (b.equipe in porEquipe) porEquipe[b.equipe]++; });
 
   const totalAfastados = afastamentosAtivos?.length || 0;
-  const efetivoPresenteHoje = totalBombeiros - totalAfastados;
+
+  // Presentes Hoje: apenas bombeiros da equipe de prontidão do dia, sem afastamento ativo hoje
+  const prontidaoHoje = getProntidaoHoje();
+  const hoje = new Date();
+  const hojeStr = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`;
+  const afastadosHojeIds = new Set(
+    (afastamentosAtivos || []).map((item: any) => item.bombeiro.id)
+  );
+  const bombeirosDaEquipeHoje = (bombeiros || []).filter(b => b.equipe === prontidaoHoje);
+  const efetivoPresenteHoje = bombeirosDaEquipeHoje.filter(b => !afastadosHojeIds.has(b.id)).length;
 
   // Bombeiros com FO negativo (devendo FO)
   const comFONegativo = saldosFO?.filter(s => s.saldo.saldoFMO < 0) || [];
@@ -90,7 +110,10 @@ export default function Dashboard() {
               <p className="text-3xl font-bold text-foreground" style={{ fontFamily: "Montserrat, sans-serif" }}>
                 {loadingBombeiros || loadingAfastamentos ? <Loader2 className="w-6 h-6 animate-spin" /> : efetivoPresenteHoje}
               </p>
-              <p className="text-xs text-muted-foreground mt-1">de {totalBombeiros} no efetivo</p>
+              <div className="flex items-center gap-1.5 mt-1">
+                <TeamBadge equipe={prontidaoHoje as any} size="sm" short />
+                <p className="text-xs text-muted-foreground">de {bombeirosDaEquipeHoje.length} na {prontidaoHoje.replace('Prontidão ', '')}</p>
+              </div>
             </CardContent>
           </Card>
 
