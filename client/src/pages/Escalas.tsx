@@ -31,6 +31,42 @@ const CYCLE_COLORS: Record<Equipe, { border: string; text: string; cellBg: strin
   "Administrativo":    { border: "#94a3b8", text: "#94a3b8", cellBg: "rgba(148,163,184,0.07)", badgeBg: "rgba(148,163,184,0.18)", label: "ADM" },
 };
 
+// ─── Hierarquia de postos ─────────────────────────────────────────────────────
+const POSTO_ORDEM: Record<string, number> = {
+  "1º Sargento": 1,
+  "2º Sargento": 2,
+  "3º Sargento": 3,
+  "Cabo":        4,
+  "Soldado":     5,
+};
+
+const POSTO_ABREV: Record<string, string> = {
+  "1º Sargento": "1º Sgt PM",
+  "2º Sargento": "2º Sgt PM",
+  "3º Sargento": "3º Sgt PM",
+  "Cabo":        "Cb PM",
+  "Soldado":     "Sd PM",
+};
+
+function getPostoAbrev(posto: string): string {
+  return POSTO_ABREV[posto] ?? posto;
+}
+
+function sortBombeiros<T extends { posto: string; nomeGuerra?: string | null; nome: string }>(list: T[]): T[] {
+  return [...list].sort((a, b) => {
+    const ordemA = POSTO_ORDEM[a.posto] ?? 99;
+    const ordemB = POSTO_ORDEM[b.posto] ?? 99;
+    if (ordemA !== ordemB) return ordemA - ordemB;
+    const nomeA = (a.nomeGuerra?.trim() || a.nome).toLowerCase();
+    const nomeB = (b.nomeGuerra?.trim() || b.nome).toLowerCase();
+    return nomeA.localeCompare(nomeB);
+  });
+}
+
+function bombeiroLabel(b: { posto: string; nomeGuerra?: string | null; nome: string }): string {
+  return `${getPostoAbrev(b.posto)} ${b.nomeGuerra?.trim() || b.nome}`;
+}
+
 function getProntidaoDoDia(date: Date): Equipe {
   // Ciclo contínuo: diff em dias a partir de 01/Jan/2026 (Verde)
   const target = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
@@ -271,17 +307,12 @@ export default function Escalas() {
                   onChange={e => setFilteredBombeiroId(Number(e.target.value) || null)}
                 >
                   <option value="">Todos os bombeiros</option>
-                  {[...bombeiros]
-                    .sort((a, b) => a.equipe.localeCompare(b.equipe) || a.nome.localeCompare(b.nome))
-                    .map(b => {
-                      const eq = b.equipe.replace("Prontidão ", "");
-                      const label = eq === "Administrativo" ? "ADM" : eq.substring(0, 2).toUpperCase();
-                      return (
-                        <option key={b.id} value={b.id}>
-                          [{label}] {(b.nomeGuerra?.trim() || b.nome.trim())} ({b.posto})
-                        </option>
-                      );
-                    })}
+                  {sortBombeiros(bombeiros)
+                    .map(b => (
+                      <option key={b.id} value={b.id}>
+                        {bombeiroLabel(b)}
+                      </option>
+                    ))}
                 </select>
                 {filteredBombeiroId && (
                   <button
@@ -560,15 +591,15 @@ export default function Escalas() {
               {/* Bombeiros da prontidão do dia em destaque */}
               {bombeirosDoProntidao.length > 0 && (
                 <optgroup label={`Prontidão do dia (${prontidaoDoModal?.replace("Prontidão ", "")})`}>
-                  {bombeirosDoProntidao.map(b => (
-                    <option key={b.id} value={b.id}>{(b.nomeGuerra?.trim() || b.nome)} ({b.posto})</option>
+                  {sortBombeiros(bombeirosDoProntidao).map(b => (
+                    <option key={b.id} value={b.id}>{bombeiroLabel(b)}</option>
                   ))}
                 </optgroup>
               )}
               {outrosBombeiros.length > 0 && (
                 <optgroup label="Outras prontidões">
-                  {outrosBombeiros.map(b => (
-                    <option key={b.id} value={b.id}>{(b.nomeGuerra?.trim() || b.nome)} ({b.equipe.replace("Prontidão ", "")})</option>
+                  {sortBombeiros(outrosBombeiros).map(b => (
+                    <option key={b.id} value={b.id}>{bombeiroLabel(b)} ({b.equipe.replace("Prontidão ", "")})</option>
                   ))}
                 </optgroup>
               )}
