@@ -145,3 +145,28 @@ export const afastamentos = mysqlTable("afastamentos", {
 
 export type Afastamento = typeof afastamentos.$inferSelect;
 export type InsertAfastamento = typeof afastamentos.$inferInsert;
+
+/**
+ * Trocas de serviço entre bombeiros
+ * Bombeiro A (entra) e Bombeiro B (sai) trocam um dia de serviço.
+ * dataTroca = dia em que ocorre a troca
+ * dataPagamento = dia em que o bombeiro que entrou será compensado
+ * numeroSEI = número do processo SEI (opcional)
+ * numeroParte = número da parte (opcional)
+ */
+export const trocasServico = mysqlTable("trocas_servico", {
+  id: int("id").autoincrement().primaryKey(),
+  quartelId: int("quartelId").notNull(),
+  bombeiroEntraId: int("bombeiroEntraId").notNull(),   // quem entra (assume o serviço)
+  bombeireSaiId: int("bombeireSaiId").notNull(),        // quem sai (cede o serviço)
+  dataTroca: date("dataTroca", { mode: "string" }).notNull(),       // dia da troca
+  dataPagamento: date("dataPagamento", { mode: "string" }),         // dia de compensação
+  numeroSEI: varchar("numeroSEI", { length: 50 }),
+  numeroParte: varchar("numeroParte", { length: 20 }),
+  observacao: text("observacao"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type TrocaServico = typeof trocasServico.$inferSelect;
+export type InsertTrocaServico = typeof trocasServico.$inferInsert;

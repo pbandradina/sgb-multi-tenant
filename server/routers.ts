@@ -9,6 +9,7 @@ import { prontidaoRouter } from "./routers/prontidao";
 import { afastamentoRouter, foRouter } from "./routers/afastamento";
 import { adminRouter } from "./routers/admin";
 import { historicoRouter } from "./routers/historico";
+import { trocaRouter } from "./routers/troca";
 
 export const appRouter = router({
   system: systemRouter,
@@ -28,6 +29,7 @@ export const appRouter = router({
   fo: foRouter,
   admin: adminRouter,
   historico: historicoRouter,
+  troca: trocaRouter,
 });
 
 export type AppRouter = typeof appRouter;

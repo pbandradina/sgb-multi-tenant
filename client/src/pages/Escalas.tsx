@@ -9,7 +9,7 @@ import { type Equipe } from "@/components/TeamBadge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Loader2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Loader2, ChevronLeft, ChevronRight, ArrowLeftRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SIGLAS_AFASTAMENTO } from "@/pages/Afastamentos";
 import { toast } from "sonner";
@@ -115,6 +115,15 @@ export default function Escalas() {
   // Bombeiro selecionado no filtro do cabeçalho
   const [filteredBombeiroId, setFilteredBombeiroId] = useState<number | null>(null);
 
+  // ─── Estado do modal de Troca ─────────────────────────────────────────────
+  const [trocaModal, setTrocaModal] = useState(false);
+  const [trocaEntraId, setTrocaEntraId] = useState<number | null>(null);
+  const [trocaSaiId, setTrocaSaiId] = useState<number | null>(null);
+  const [trocaData, setTrocaData] = useState<string>("");
+  const [trocaPagamento, setTrocaPagamento] = useState<string>("");
+  const [trocaSEI, setTrocaSEI] = useState<string>("");
+  const [trocaParte, setTrocaParte] = useState<string>("");
+
   useEffect(() => {
     if (!loading && !isAuthenticated) { window.location.href = getLoginUrl(); return; }
     if (!loading && isAuthenticated && !quartelId) navigate("/selecionar-quartel");
@@ -125,6 +134,11 @@ export default function Escalas() {
 
   const { data: bombeiros } = trpc.bombeiro.list.useQuery(
     { quartelId: quartelId! },
+    { enabled: !!quartelId }
+  );
+
+  const { data: trocasMes, refetch: refetchTrocas } = trpc.troca.list.useQuery(
+    { quartelId: quartelId!, ano: year, mes: month },
     { enabled: !!quartelId }
   );
 
@@ -150,6 +164,51 @@ export default function Escalas() {
       setPeriodoConcessao(`${proxPeriodo.dataInicio} a ${proxPeriodo.dataFim}`);
     }
   }, [saldoFMO, selectedSigla]);
+
+  const createTroca = trpc.troca.create.useMutation({
+    onSuccess: () => {
+      toast.success("Troca registrada com sucesso!");
+      refetchTrocas();
+      utils.troca.list.invalidate();
+      setTrocaModal(false);
+      setTrocaEntraId(null);
+      setTrocaSaiId(null);
+      setTrocaData("");
+      setTrocaPagamento("");
+      setTrocaSEI("");
+      setTrocaParte("");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const deleteTroca = trpc.troca.delete.useMutation({
+    onSuccess: () => {
+      toast.success("Troca removida!");
+      refetchTrocas();
+      utils.troca.list.invalidate();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  function handleSaveTroca() {
+    if (!trocaEntraId || !trocaSaiId || !trocaData || !quartelId) {
+      toast.error("Preencha todos os campos obrigatórios");
+      return;
+    }
+    if (trocaEntraId === trocaSaiId) {
+      toast.error("Os dois bombeiros devem ser diferentes");
+      return;
+    }
+    createTroca.mutate({
+      quartelId,
+      bombeiroEntraId: trocaEntraId,
+      bombeireSaiId: trocaSaiId,
+      dataTroca: trocaData,
+      dataPagamento: trocaPagamento || undefined,
+      numeroSEI: trocaSEI || undefined,
+      numeroParte: trocaParte || undefined,
+    });
+  }
 
   const createAfastamento = trpc.afastamento.create.useMutation({
     onSuccess: () => {
@@ -326,6 +385,16 @@ export default function Escalas() {
               </div>
             )}
           </div>
+          {/* Botão Nova Troca */}
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-border gap-2"
+            onClick={() => { setTrocaModal(true); setTrocaData(toDateStr(new Date(year, month, 1))); }}
+          >
+            <ArrowLeftRight className="w-4 h-4" />
+            Nova Troca
+          </Button>
           {/* Legenda */}
           <div className="flex items-center gap-3 flex-wrap">
             {CYCLE.map(eq => {
@@ -475,12 +544,71 @@ export default function Escalas() {
         <div className="flex items-start gap-2 p-3 rounded-lg bg-secondary/30 border border-border">
           <span className="text-muted-foreground mt-0.5 flex-shrink-0 text-sm">ℹ</span>
           <p className="text-xs text-muted-foreground">
-            Ciclo contínuo: <strong style={{ color: CYCLE_COLORS["Prontidão Verde"].text }}>VD</strong> (01/Jan/2026) →{" "}
-            <strong style={{ color: CYCLE_COLORS["Prontidão Amarela"].text }}>AM</strong> (02/Jan) →{" "}
+            Ciclo contínuo: <strong style={{ color: CYCLE_COLORS["Prontidão Verde"].text }}>VD</strong> (01/Jan/2026) { }
+            <strong style={{ color: CYCLE_COLORS["Prontidão Amarela"].text }}>AM</strong> (02/Jan) { }
             <strong style={{ color: CYCLE_COLORS["Prontidão Azul"].text }}>AZ</strong> (03/Jan) → repetindo.
             Clique em qualquer dia para registrar um afastamento diretamente na célula.
           </p>
         </div>
+
+        {/* Tabela de Trocas de Serviço do Mês */}
+        <Card className="bg-card border-border overflow-hidden">
+          <div className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <ArrowLeftRight className="w-4 h-4 text-primary" />
+                <p className="text-sm font-semibold text-foreground">Alterações de Escala / Trocas de Serviço — {MESES[month]}/{year}</p>
+              </div>
+              <Button variant="outline" size="sm" className="border-border gap-1.5 text-xs" onClick={() => { setTrocaModal(true); setTrocaData(toDateStr(new Date(year, month, 1))); }}>
+                <ArrowLeftRight className="w-3 h-3" /> Nova Troca
+              </Button>
+            </div>
+            {!trocasMes || trocasMes.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-4">Nenhuma troca registrada neste mês.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left py-2 px-3 text-muted-foreground font-semibold uppercase tracking-wide">Data</th>
+                      <th className="text-left py-2 px-3 font-semibold uppercase tracking-wide" style={{ color: '#22c55e' }}>Entra</th>
+                      <th className="text-left py-2 px-3 font-semibold uppercase tracking-wide" style={{ color: '#ef4444' }}>Sai</th>
+                      <th className="text-left py-2 px-3 text-muted-foreground font-semibold uppercase tracking-wide">SEI</th>
+                      <th className="text-left py-2 px-3 text-muted-foreground font-semibold uppercase tracking-wide">Parte Nº</th>
+                      <th className="text-left py-2 px-3 text-muted-foreground font-semibold uppercase tracking-wide">Pagamento</th>
+                      <th className="py-2 px-3"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {trocasMes.map((t, idx) => {
+                      const dataFmt = t.dataTroca ? formatDayLabel(parseDateLocal(t.dataTroca as any)) : "-";
+                      const pagFmt = t.dataPagamento ? formatDayLabel(parseDateLocal(t.dataPagamento as any)) : "-";
+                      const entraLabel = t.bombeiroEntra ? bombeiroLabel(t.bombeiroEntra) : `#${t.bombeiroEntraId}`;
+                      const saiLabel = t.bombeireSai ? bombeiroLabel(t.bombeireSai) : `#${t.bombeireSaiId}`;
+                      return (
+                        <tr key={t.id} className={cn("border-b border-border/40 hover:bg-secondary/20 transition-colors", idx % 2 === 0 ? "" : "bg-secondary/10")}>
+                          <td className="py-2 px-3 font-bold text-foreground">{dataFmt}</td>
+                          <td className="py-2 px-3" style={{ color: '#22c55e', fontWeight: 600 }}>{entraLabel}</td>
+                          <td className="py-2 px-3" style={{ color: '#ef4444', fontWeight: 600 }}>{saiLabel}</td>
+                          <td className="py-2 px-3 text-muted-foreground">{t.numeroSEI || "-"}</td>
+                          <td className="py-2 px-3 text-muted-foreground">{t.numeroParte || "-"}</td>
+                          <td className="py-2 px-3 text-muted-foreground">{pagFmt}</td>
+                          <td className="py-2 px-3">
+                            <button
+                              onClick={() => { if (confirm(`Remover troca de ${dataFmt}?`)) deleteTroca.mutate({ id: t.id, quartelId: quartelId! }); }}
+                              className="text-destructive hover:text-destructive/80 text-[10px] font-bold px-1.5 py-0.5 rounded hover:bg-destructive/10 transition-colors"
+                              title="Remover troca"
+                            >✕</button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </Card>
       </div>
 
       {/* Modal de inserção de afastamento */}
@@ -637,6 +765,114 @@ export default function Escalas() {
             {createAfastamento.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
             Registrar Afastamento
           </Button>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Nova Troca de Serviço */}
+      <Dialog open={trocaModal} onOpenChange={(open) => { if (!open) setTrocaModal(false); }}>
+        <DialogContent className="max-w-lg bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-foreground flex items-center gap-2">
+              <ArrowLeftRight className="w-4 h-4 text-primary" />
+              Registrar Troca de Serviço
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Data da Troca */}
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Data da Troca <span className="text-destructive">*</span></label>
+              <input
+                type="date"
+                className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground"
+                value={trocaData}
+                onChange={e => setTrocaData(e.target.value)}
+              />
+            </div>
+
+            {/* Quem Entra / Quem Sai */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold" style={{ color: '#22c55e' }}>Entra (assume o serviço) <span className="text-destructive">*</span></label>
+                <select
+                  className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground"
+                  value={trocaEntraId ?? ""}
+                  onChange={e => setTrocaEntraId(Number(e.target.value) || null)}
+                >
+                  <option value="">Selecione...</option>
+                  {sortBombeiros(bombeiros ?? []).map(b => (
+                    <option key={b.id} value={b.id}>{bombeiroLabel(b)}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold" style={{ color: '#ef4444' }}>Sai (cede o serviço) <span className="text-destructive">*</span></label>
+                <select
+                  className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground"
+                  value={trocaSaiId ?? ""}
+                  onChange={e => setTrocaSaiId(Number(e.target.value) || null)}
+                >
+                  <option value="">Selecione...</option>
+                  {sortBombeiros(bombeiros ?? []).map(b => (
+                    <option key={b.id} value={b.id}>{bombeiroLabel(b)}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Data de Pagamento */}
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Data de Pagamento (compensação)</label>
+              <input
+                type="date"
+                className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground"
+                value={trocaPagamento}
+                onChange={e => setTrocaPagamento(e.target.value)}
+              />
+            </div>
+
+            {/* SEI e Parte */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">Nº SEI</label>
+                <input
+                  type="text"
+                  className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground"
+                  placeholder="Ex: 05700631938/2025-69"
+                  value={trocaSEI}
+                  onChange={e => setTrocaSEI(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">Parte Nº</label>
+                <input
+                  type="text"
+                  className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground"
+                  placeholder="Ex: 93"
+                  value={trocaParte}
+                  onChange={e => setTrocaParte(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* Aviso sobre contagem no ciclo */}
+            <div className="flex items-start gap-2 p-2.5 rounded-lg bg-primary/10 border border-primary/20">
+              <span className="text-primary text-xs mt-0.5">ℹ</span>
+              <p className="text-[11px] text-muted-foreground">
+                O dia de troca será contado no ciclo de 9 serviços do bombeiro que <strong className="text-green-400">entra</strong>.
+                O bombeiro que <strong className="text-red-400">sai</strong> não terá esse dia contado.
+              </p>
+            </div>
+
+            <Button
+              className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
+              onClick={handleSaveTroca}
+              disabled={createTroca.isPending || !trocaEntraId || !trocaSaiId || !trocaData}
+            >
+              {createTroca.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Registrar Troca
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </AppLayout>

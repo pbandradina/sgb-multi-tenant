@@ -57,6 +57,13 @@
       "when": 1777031051091,
       "tag": "0007_slow_stardust",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "5",
+      "when": 1777759490115,
+      "tag": "0008_simple_krista_starr",
+      "breakpoints": true
     }
   ]
 }

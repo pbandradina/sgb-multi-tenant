@@ -16,6 +16,7 @@ import {
   InsertProntidao,
   InsertAfastamento,
   InsertBombeiroProntidaoHistorico,
+  trocasServico,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -517,6 +518,25 @@ export async function calcularSaldoFMO(bombeiroId: number, quartelId: number) {
     .where(and(eq(afastamentos.bombeiroId, bombeiroId), eq(afastamentos.quartelId, quartelId)))
     .orderBy(afastamentos.dataInicio);
 
+  // Buscar trocas onde este bombeiro ENTRA (trabalha em dia que não é da sua prontidão)
+  // Esses dias devem ser contados no ciclo de 9 como serviço extra
+  const trocasEntra = await db
+    .select({ dataTroca: trocasServico.dataTroca })
+    .from(trocasServico)
+    .where(and(eq(trocasServico.bombeiroEntraId, bombeiroId), eq(trocasServico.quartelId, quartelId)));
+
+  // Conjunto de datas de troca (dias extras de serviço)
+  const diasTroca = new Set<string>(trocasEntra.map(t => t.dataTroca as string));
+
+  // Buscar trocas onde este bombeiro SAI (cede o dia — não trabalha na sua prontidão)
+  // Esses dias NÃO devem ser contados no ciclo
+  const trocasSai = await db
+    .select({ dataTroca: trocasServico.dataTroca })
+    .from(trocasServico)
+    .where(and(eq(trocasServico.bombeireSaiId, bombeiroId), eq(trocasServico.quartelId, quartelId)));
+
+  const diasCedidos = new Set<string>(trocasSai.map(t => t.dataTroca as string));
+
   // Construir mapa de data → sigla de afastamento para consulta rápida
   const afastamentoNoDia = new Map<string, string>();
   for (const af of todosAfastamentos) {
@@ -544,6 +564,9 @@ export async function calcularSaldoFMO(bombeiroId: number, quartelId: number) {
       const inicio = parseDateLocal(vinculo.dataInicio as any);
       const fim = vinculo.dataFim ? parseDateLocal(vinculo.dataFim as any) : hoje;
       for (let d = new Date(inicio); d <= fim; d.setDate(d.getDate() + 1)) {
+        const chaveD = dateToYMD(d);
+        // Dia cedido por troca: bombeiro não trabalhou neste dia
+        if (diasCedidos.has(chaveD)) continue;
         if (getProntidaoDoDiaServer(d) === vinculo.equipe) {
           diasDeServico.push({ data: new Date(d), equipe: vinculo.equipe });
         }
@@ -552,11 +575,26 @@ export async function calcularSaldoFMO(bombeiroId: number, quartelId: number) {
   } else {
     const inicio = parseDateLocal(bombeiro.dataInicio as any);
     for (let d = new Date(inicio); d <= hoje; d.setDate(d.getDate() + 1)) {
+      const chaveD = dateToYMD(d);
+      // Dia cedido por troca: bombeiro não trabalhou neste dia
+      if (diasCedidos.has(chaveD)) continue;
       if (getProntidaoDoDiaServer(d) === bombeiro.equipe) {
         diasDeServico.push({ data: new Date(d), equipe: bombeiro.equipe });
       }
     }
   }
+
+  // Adicionar dias de troca (bombeiro entrou em dia de outra prontidão)
+  // Inserir na posição correta pela data para manter a ordem cronológica
+  for (const chave of Array.from(diasTroca).sort()) {
+    const [y, m, d] = chave.split('-').map(Number);
+    const dataTroca = new Date(y, m - 1, d);
+    if (dataTroca <= hoje) {
+      diasDeServico.push({ data: dataTroca, equipe: bombeiro.equipe });
+    }
+  }
+  // Reordenar cronologicamente após inserção das trocas
+  diasDeServico.sort((a, b) => a.data.getTime() - b.data.getTime());
 
   // Calcular FMO com lógica de interrupção por afastamentos
   // A cada 9 serviços CONSECUTIVOS (sem interrupção) = 1 FMO
@@ -622,3 +660,83 @@ export async function calcularSaldoFMO(bombeiroId: number, quartelId: number) {
 
 // Manter alias para compatibilidade
 export const calcularSaldoFO = calcularSaldoFMO;
+// ─── Trocas de Serviço ────────────────────────────────────────────────────────
+export async function getTrocasByQuartel(quartelId: number, ano: number, mes: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  const primeiroDia = `${ano}-${String(mes + 1).padStart(2, "0")}-01`;
+  const ultimoDiaDate = new Date(ano, mes + 1, 0);
+  const ultimoDia = `${ultimoDiaDate.getFullYear()}-${String(ultimoDiaDate.getMonth() + 1).padStart(2, "0")}-${String(ultimoDiaDate.getDate()).padStart(2, "0")}`;
+
+  const trocas = await db
+    .select()
+    .from(trocasServico)
+    .where(
+      and(
+        eq(trocasServico.quartelId, quartelId),
+        gte(trocasServico.dataTroca, primeiroDia),
+        lte(trocasServico.dataTroca, ultimoDia)
+      )
+    )
+    .orderBy(trocasServico.dataTroca);
+
+  if (trocas.length === 0) return [];
+
+  const bomIds = Array.from(new Set([
+    ...trocas.map(t => t.bombeiroEntraId),
+    ...trocas.map(t => t.bombeireSaiId),
+  ]));
+
+  const boms = await db
+    .select({ id: bombeiros.id, nome: bombeiros.nome, nomeGuerra: bombeiros.nomeGuerra, posto: bombeiros.posto })
+    .from(bombeiros)
+    .where(eq(bombeiros.quartelId, quartelId));
+
+  const bomMap: Record<number, { id: number; nome: string; nomeGuerra: string | null; posto: string }> =
+    Object.fromEntries(boms.map(b => [b.id, b]));
+
+  return trocas.map(t => ({
+    ...t,
+    bombeiroEntra: bomMap[t.bombeiroEntraId] ?? null,
+    bombeireSai: bomMap[t.bombeireSaiId] ?? null,
+  }));
+}
+
+export async function createTroca(input: {
+  quartelId: number;
+  bombeiroEntraId: number;
+  bombeireSaiId: number;
+  dataTroca: string;
+  dataPagamento?: string;
+  numeroSEI?: string;
+  numeroParte?: string;
+  observacao?: string;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("DB não disponível");
+
+  const [result] = await db.insert(trocasServico).values({
+    quartelId: input.quartelId,
+    bombeiroEntraId: input.bombeiroEntraId,
+    bombeireSaiId: input.bombeireSaiId,
+    dataTroca: input.dataTroca,
+    dataPagamento: input.dataPagamento ?? null,
+    numeroSEI: input.numeroSEI ?? null,
+    numeroParte: input.numeroParte ?? null,
+    observacao: input.observacao ?? null,
+  });
+
+  return { id: (result as any).insertId };
+}
+
+export async function deleteTroca(id: number, quartelId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB não disponível");
+
+  await db
+    .delete(trocasServico)
+    .where(and(eq(trocasServico.id, id), eq(trocasServico.quartelId, quartelId)));
+
+  return { ok: true };
+}
