@@ -13,6 +13,7 @@ import Escalas from "./pages/Escalas";
 import Afastamentos from "./pages/Afastamentos";
 import FolhasObrigatorias from "./pages/FolhasObrigatorias";
 import Relatorios from "./pages/Relatorios";
+import ControleFrequencia from "./pages/ControleFrequencia";
 import AdminPanel from "./pages/AdminPanel";
 
 function Router() {
@@ -26,6 +27,7 @@ function Router() {
       <Route path={"/afastamentos"} component={Afastamentos} />
       <Route path={"/fo"} component={FolhasObrigatorias} />
       <Route path={"/relatorios"} component={Relatorios} />
+      <Route path={"/controle-frequencia"} component={ControleFrequencia} />
       <Route path={"/admin"} component={AdminPanel} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />

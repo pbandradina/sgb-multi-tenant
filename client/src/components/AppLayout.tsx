@@ -8,6 +8,7 @@ import {
   ClipboardList,
   FileText,
   BarChart3,
+  TableProperties,
   Shield,
   LogOut,
   ChevronRight,
@@ -28,6 +29,7 @@ const navItems = [
   { href: "/afastamentos", label: "Afastamentos", icon: ClipboardList },
   { href: "/fo", label: "Folgas Obrigatórias", icon: FileText },
   { href: "/relatorios", label: "Relatórios", icon: BarChart3 },
+  { href: "/controle-frequencia", label: "Controle de Frequência", icon: TableProperties },
 ];
 
 interface AppLayoutProps {
