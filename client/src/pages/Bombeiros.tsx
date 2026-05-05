@@ -15,6 +15,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Card, CardContent } from "@/components/ui/card";
 import { Loader2, Plus, Trash2, Search, Users, UserCheck, CalendarRange, History, ChevronDown, ChevronUp, Pencil } from "lucide-react";
 import { toast } from "sonner";
+import { SIGLAS_AFASTAMENTO } from "@/pages/Afastamentos";
+import { cn } from "@/lib/utils";
 
 const POSTOS = [
   "Soldado", "Cabo", "3º Sargento", "2º Sargento", "1º Sargento",
@@ -59,7 +61,15 @@ export default function Bombeiros() {
   // Aplicar Código a Período
   const [showAplicarCodigo, setShowAplicarCodigo] = useState(false);
   const [selectedBombeiro, setSelectedBombeiro] = useState<{ id: number; nome: string; nomeGuerra?: string | null; equipe: string } | null>(null);
-  const [codigoForm, setCodigoForm] = useState({ equipe: "Prontidão Azul" as Equipe, dataInicio: "", dataFim: "", observacao: "" });
+  const [codigoForm, setCodigoForm] = useState({ 
+    tipo: "prontidao" as "prontidao" | "afastamento",
+    equipe: "Prontidão Azul" as Equipe, 
+    siglaAfastamento: "",
+    dataInicio: "", 
+    dataFim: "", 
+    observacao: "",
+    periodoConcessao: "",
+  });
 
   // Histórico expandido
   const [expandedHistorico, setExpandedHistorico] = useState<number | null>(null);
@@ -115,8 +125,19 @@ export default function Bombeiros() {
       utils.historico.listByBombeiro.invalidate();
       setShowAplicarCodigo(false);
       setSelectedBombeiro(null);
-      setCodigoForm({ equipe: "Prontidão Azul", dataInicio: "", dataFim: "", observacao: "" });
+      setCodigoForm({ tipo: "prontidao", equipe: "Prontidão Azul", siglaAfastamento: "", dataInicio: "", dataFim: "", observacao: "", periodoConcessao: "" });
       toast.success("Código aplicado com sucesso!");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const criarAfastamentoMutation = trpc.afastamento.create.useMutation({
+    onSuccess: () => {
+      utils.bombeiro.list.invalidate();
+      setShowAplicarCodigo(false);
+      setSelectedBombeiro(null);
+      setCodigoForm({ tipo: "prontidao", equipe: "Prontidão Azul", siglaAfastamento: "", dataInicio: "", dataFim: "", observacao: "", periodoConcessao: "" });
+      toast.success("Afastamento registrado com sucesso!");
     },
     onError: (e) => toast.error(e.message),
   });
@@ -184,8 +205,24 @@ export default function Bombeiros() {
   };
 
   const handleAplicarCodigo = () => {
-    if (!selectedBombeiro || !codigoForm.equipe || !codigoForm.dataInicio) {
-      toast.error("Preencha a prontidão e a data de início.");
+    if (!selectedBombeiro || !codigoForm.dataInicio) {
+      toast.error("Preencha o código e a data de início.");
+      return;
+    }
+    if (codigoForm.tipo === "afastamento") {
+      if (!codigoForm.siglaAfastamento || !codigoForm.dataFim) {
+        toast.error("Preencha a sigla e a data fim do afastamento.");
+        return;
+      }
+      criarAfastamentoMutation.mutate({
+        quartelId: quartelId!,
+        bombeiroId: selectedBombeiro.id,
+        tipo: codigoForm.siglaAfastamento as any,
+        dataInicio: codigoForm.dataInicio,
+        dataFim: codigoForm.dataFim,
+        descricao: codigoForm.observacao || undefined,
+        periodoConcessao: codigoForm.siglaAfastamento === "FMO" && codigoForm.periodoConcessao ? codigoForm.periodoConcessao : undefined,
+      });
       return;
     }
     aplicarCodigoMutation.mutate({
@@ -200,7 +237,7 @@ export default function Bombeiros() {
 
   const openAplicarCodigo = (b: typeof filtered[0]) => {
     setSelectedBombeiro({ id: b.id, nome: b.nome, nomeGuerra: b.nomeGuerra, equipe: b.equipe });
-    setCodigoForm({ equipe: b.equipe as Equipe, dataInicio: "", dataFim: "", observacao: "" });
+    setCodigoForm({ tipo: "prontidao", equipe: b.equipe as Equipe, siglaAfastamento: "", dataInicio: "", dataFim: "", observacao: "", periodoConcessao: "" });
     setShowAplicarCodigo(true);
   };
 
@@ -410,35 +447,105 @@ export default function Bombeiros() {
               </p>
             )}
           </DialogHeader>
-          <div className="space-y-4 py-2">
+          <div className="space-y-4 py-2 max-h-[70vh] overflow-y-auto pr-1">
+
+            {/* Tipo: Prontidão ou Afastamento */}
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground uppercase tracking-wide">Prontidão / Código *</Label>
-              <Select value={codigoForm.equipe} onValueChange={v => setCodigoForm(f => ({ ...f, equipe: v as Equipe }))}>
-                <SelectTrigger className="bg-background border-border"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {EQUIPES.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <Label className="text-xs text-muted-foreground uppercase tracking-wide">Tipo de Código *</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {(["prontidao", "afastamento"] as const).map(t => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setCodigoForm(f => ({ ...f, tipo: t, siglaAfastamento: "" }))}
+                    className={cn(
+                      "rounded-lg px-3 py-2.5 text-sm font-medium border-2 transition-all",
+                      codigoForm.tipo === t
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border bg-secondary/30 text-muted-foreground hover:bg-secondary/60"
+                    )}
+                  >
+                    {t === "prontidao" ? "🛡️ Prontidão" : "📄 Afastamento"}
+                  </button>
+                ))}
+              </div>
             </div>
+
+            {/* Prontidão */}
+            {codigoForm.tipo === "prontidao" && (
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground uppercase tracking-wide">Equipe / Prontidão *</Label>
+                <Select value={codigoForm.equipe} onValueChange={v => setCodigoForm(f => ({ ...f, equipe: v as Equipe }))}>
+                  <SelectTrigger className="bg-background border-border"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {EQUIPES.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Siglas de afastamento */}
+            {codigoForm.tipo === "afastamento" && (
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground uppercase tracking-wide">Tipo de Afastamento *</Label>
+                <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
+                  {SIGLAS_AFASTAMENTO.map(s => (
+                    <button
+                      key={s.sigla}
+                      type="button"
+                      onClick={() => setCodigoForm(f => ({ ...f, siglaAfastamento: s.sigla, periodoConcessao: "" }))}
+                      className={cn(
+                        "flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium border-2 transition-all text-left",
+                        codigoForm.siglaAfastamento === s.sigla
+                          ? "border-primary ring-2 ring-primary/30"
+                          : "border-transparent",
+                        "bg-secondary/40 text-foreground hover:bg-secondary/70"
+                      )}
+                    >
+                      <span className={cn("inline-flex items-center justify-center rounded px-1.5 py-0.5 text-[10px] font-black leading-none flex-shrink-0", s.cor)}>
+                        {s.sigla}
+                      </span>
+                      <span className="text-xs">{s.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Datas */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground uppercase tracking-wide">Data Início *</Label>
                 <Input type="date" value={codigoForm.dataInicio} onChange={e => setCodigoForm(f => ({ ...f, dataInicio: e.target.value }))} className="bg-background border-border" />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground uppercase tracking-wide">Data Fim (opcional)</Label>
+                <Label className="text-xs text-muted-foreground uppercase tracking-wide">
+                  Data Fim {codigoForm.tipo === "afastamento" ? "*" : "(opcional)"}
+                </Label>
                 <Input type="date" value={codigoForm.dataFim} onChange={e => setCodigoForm(f => ({ ...f, dataFim: e.target.value }))} className="bg-background border-border" />
               </div>
             </div>
+
+            {/* Observação */}
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground uppercase tracking-wide">Observação (opcional)</Label>
-              <Input value={codigoForm.observacao} onChange={e => setCodigoForm(f => ({ ...f, observacao: e.target.value }))} placeholder="Ex: Transferência temporária" className="bg-background border-border" />
+              <Input
+                value={codigoForm.observacao}
+                onChange={e => setCodigoForm(f => ({ ...f, observacao: e.target.value }))}
+                placeholder={codigoForm.tipo === "prontidao" ? "Ex: Transferência temporária" : "Ex: CID, número da portaria..."}
+                className="bg-background border-border"
+              />
             </div>
+
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setShowAplicarCodigo(false); setSelectedBombeiro(null); }} className="border-border">Cancelar</Button>
-            <Button onClick={handleAplicarCodigo} disabled={aplicarCodigoMutation.isPending} className="bg-primary hover:bg-primary/90 text-primary-foreground">
-              {aplicarCodigoMutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+            <Button
+              onClick={handleAplicarCodigo}
+              disabled={aplicarCodigoMutation.isPending || criarAfastamentoMutation.isPending}
+              className="bg-primary hover:bg-primary/90 text-primary-foreground"
+            >
+              {(aplicarCodigoMutation.isPending || criarAfastamentoMutation.isPending) && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
               Aplicar Código
             </Button>
           </DialogFooter>
