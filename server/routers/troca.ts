@@ -23,7 +23,7 @@ export const trocaRouter = router({
       mes: z.number(), // 0-indexed (0=Jan)
     }))
     .query(async ({ ctx, input }) => {
-      await assertQuartelAccess(ctx.user.id, input.quartelId);
+      if (ctx.user.role !== "admin") await assertQuartelAccess(ctx.user.id, input.quartelId);
       return getTrocasByQuartel(input.quartelId, input.ano, input.mes);
     }),
 
@@ -40,7 +40,7 @@ export const trocaRouter = router({
       observacao: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      await assertQuartelAccess(ctx.user.id, input.quartelId);
+      if (ctx.user.role !== "admin") await assertQuartelAccess(ctx.user.id, input.quartelId);
       return createTroca(input);
     }),
 
@@ -48,7 +48,7 @@ export const trocaRouter = router({
   delete: protectedProcedure
     .input(z.object({ id: z.number(), quartelId: z.number() }))
     .mutation(async ({ ctx, input }) => {
-      await assertQuartelAccess(ctx.user.id, input.quartelId);
+      if (ctx.user.role !== "admin") await assertQuartelAccess(ctx.user.id, input.quartelId);
       return deleteTroca(input.id, input.quartelId);
     }),
 });
