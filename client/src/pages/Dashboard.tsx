@@ -2,11 +2,11 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
 import { useQuartel } from "@/contexts/QuartelContext";
 import { trpc } from "@/lib/trpc";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { AppLayout } from "@/components/AppLayout";
 import { TeamBadge } from "@/components/TeamBadge";
-import { Loader2, Users, AlertTriangle, TrendingUp, Clock, UserX } from "lucide-react";
+import { Loader2, Users, AlertTriangle, TrendingUp, Clock, UserX, ArrowLeftRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 // Ciclo de prontidões: referência 01/Jan/2026 = Verde
@@ -51,6 +51,13 @@ export default function Dashboard() {
     { enabled: !!quartelId }
   );
 
+  // Trocas do mês atual (para filtrar as de hoje)
+  const [hojeQuery] = useState(() => new Date());
+  const { data: trocasHoje } = trpc.troca.list.useQuery(
+    { quartelId: quartelId!, ano: hojeQuery.getFullYear(), mes: hojeQuery.getMonth() },
+    { enabled: !!quartelId }
+  );
+
   if (loading || !quartelId) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -73,7 +80,43 @@ export default function Dashboard() {
     (afastamentosAtivos || []).map((item: any) => item.bombeiro.id)
   );
   const bombeirosDaEquipeHoje = (bombeiros || []).filter(b => b.equipe === prontidaoHoje);
-  const efetivoPresenteHoje = bombeirosDaEquipeHoje.filter(b => !afastadosHojeIds.has(b.id)).length;
+
+  // IDs dos bombeiros que entram por troca hoje (de outra equipe)
+  const trocasDeHoje = (trocasHoje || []).filter(t => {
+    const d = t.dataTroca ? new Date(t.dataTroca) : null;
+    if (!d) return false;
+    const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    return ds === hojeStr;
+  });
+  // IDs que saem por troca hoje (não contam como presentes)
+  const trocaSaiHojeIds = new Set(trocasDeHoje.map(t => t.bombeireSaiId));
+  // Bombeiros de outra equipe que entram por troca hoje
+  const trocaEntraHoje = trocasDeHoje
+    .map(t => {
+      const bom = (bombeiros || []).find(b => b.id === t.bombeiroEntraId);
+      return bom ? { ...bom, isTroca: true } : null;
+    })
+    .filter(Boolean) as (typeof bombeiros extends (infer T)[] | undefined ? T & { isTroca: boolean } : never)[];
+
+  // Lista final de presentes: equipe do dia (exceto afastados e quem saiu por troca) + quem entrou por troca
+  const POSTO_ORDER: Record<string, number> = {
+    '1º Sgt PM': 1, '1º Sargento': 1,
+    '2º Sgt PM': 2, '2º Sargento': 2,
+    '3º Sgt PM': 3, '3º Sargento': 3,
+    'Cb PM': 4, 'Cabo': 4,
+    'Sd PM': 5, 'Soldado': 5,
+  };
+  const sortBombeiros = (a: { posto?: string | null; nomeGuerra?: string | null; nome: string }, b: { posto?: string | null; nomeGuerra?: string | null; nome: string }) => {
+    const pa = POSTO_ORDER[a.posto || ''] ?? 99;
+    const pb = POSTO_ORDER[b.posto || ''] ?? 99;
+    if (pa !== pb) return pa - pb;
+    return (a.nomeGuerra || a.nome).localeCompare(b.nomeGuerra || b.nome);
+  };
+  const presentesBase = bombeirosDaEquipeHoje
+    .filter(b => !afastadosHojeIds.has(b.id) && !trocaSaiHojeIds.has(b.id))
+    .map(b => ({ ...b, isTroca: false }));
+  const presentesHoje = [...presentesBase, ...trocaEntraHoje].sort(sortBombeiros);
+  const efetivoPresenteHoje = presentesHoje.length;
 
   // Bombeiros com FO negativo (devendo FO)
   const comFONegativo = saldosFO?.filter(s => s.saldo.saldoFMO < 0) || [];
@@ -110,10 +153,29 @@ export default function Dashboard() {
               <p className="text-3xl font-bold text-foreground" style={{ fontFamily: "Montserrat, sans-serif" }}>
                 {loadingBombeiros || loadingAfastamentos ? <Loader2 className="w-6 h-6 animate-spin" /> : efetivoPresenteHoje}
               </p>
-              <div className="flex items-center gap-1.5 mt-1">
+              <div className="flex items-center gap-1.5 mt-1 mb-3">
                 <TeamBadge equipe={prontidaoHoje as any} size="sm" short />
                 <p className="text-xs text-muted-foreground">de {bombeirosDaEquipeHoje.length} na {prontidaoHoje.replace('Prontidão ', '')}</p>
               </div>
+              {loadingBombeiros || loadingAfastamentos ? null : (
+                <div className="space-y-1 max-h-48 overflow-y-auto border-t border-border/40 pt-2">
+                  {presentesHoje.length === 0 ? (
+                    <p className="text-xs text-muted-foreground text-center py-2">Nenhum bombeiro presente</p>
+                  ) : presentesHoje.map((b) => (
+                    <div key={b.id} className="flex items-center justify-between gap-2 py-0.5">
+                      <span className="text-xs text-foreground truncate">
+                        <span className="text-muted-foreground mr-1">{b.posto}</span>
+                        {b.nomeGuerra || b.nome}
+                      </span>
+                      {b.isTroca && (
+                        <span className="flex items-center gap-0.5 text-[10px] text-amber-400 font-semibold shrink-0">
+                          <ArrowLeftRight className="w-3 h-3" />(troca)
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
 
