@@ -278,6 +278,20 @@ export default function Escalas() {
     return map;
   }, [afastamentosMes, bombeiros, year, month]);
 
+  // Mapa de trocas por data (YYYY-MM-DD) para indicador visual no calendário
+  const trocasPorData = useMemo(() => {
+    const map: Record<string, { entra: string; sai: string }[]> = {};
+    (trocasMes || []).forEach(t => {
+      if (!t.dataTroca) return;
+      const ds = toDateStr(parseDateLocal(t.dataTroca as any));
+      if (!map[ds]) map[ds] = [];
+      const nomeEntra = t.bombeiroEntra?.nomeGuerra || t.bombeiroEntra?.nome || 'Desconhecido';
+      const nomeSai = t.bombeireSai?.nomeGuerra || t.bombeireSai?.nome || 'Desconhecido';
+      map[ds].push({ entra: nomeEntra, sai: nomeSai });
+    });
+    return map;
+  }, [trocasMes]);
+
   // Dias do calendário
   const calendarDays = useMemo(() => {
     const firstDayOfWeek = new Date(year, month, 1).getDay();
@@ -467,6 +481,15 @@ export default function Escalas() {
                 >
               {day && colors && (
                 <>
+                  {/* Indicador de troca no canto superior direito */}
+                  {date && trocasPorData[toDateStr(date)] && (
+                    <div
+                      className="absolute top-1 right-1 flex items-center gap-0.5"
+                      title={trocasPorData[toDateStr(date)].map(t => `⇄ ${t.entra} ↔ ${t.sai}`).join('\n')}
+                    >
+                      <ArrowLeftRight className="w-3 h-3 text-amber-400" />
+                    </div>
+                  )}
                   {/* Número do dia */}
                   <div
                     className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm border-2 transition-all flex-shrink-0"
