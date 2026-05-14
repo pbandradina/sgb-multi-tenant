@@ -740,3 +740,31 @@ export async function deleteTroca(id: number, quartelId: number) {
 
   return { ok: true };
 }
+
+export async function updateTroca(id: number, quartelId: number, input: {
+  bombeiroEntraId?: number;
+  bombeireSaiId?: number;
+  dataTroca?: string;
+  dataPagamento?: string | null;
+  numeroSEI?: string | null;
+  numeroParte?: string | null;
+  observacao?: string | null;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("DB não disponível");
+
+  await db
+    .update(trocasServico)
+    .set({
+      ...(input.bombeiroEntraId !== undefined && { bombeiroEntraId: input.bombeiroEntraId }),
+      ...(input.bombeireSaiId !== undefined && { bombeireSaiId: input.bombeireSaiId }),
+      ...(input.dataTroca !== undefined && { dataTroca: input.dataTroca }),
+      ...(input.dataPagamento !== undefined && { dataPagamento: input.dataPagamento }),
+      ...(input.numeroSEI !== undefined && { numeroSEI: input.numeroSEI }),
+      ...(input.numeroParte !== undefined && { numeroParte: input.numeroParte }),
+      ...(input.observacao !== undefined && { observacao: input.observacao }),
+    })
+    .where(and(eq(trocasServico.id, id), eq(trocasServico.quartelId, quartelId)));
+
+  return { ok: true };
+}

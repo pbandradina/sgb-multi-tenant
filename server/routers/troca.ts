@@ -5,6 +5,7 @@ import {
   getTrocasByQuartel,
   createTroca,
   deleteTroca,
+  updateTroca,
   getUserQuartelRole,
 } from "../db";
 
@@ -42,6 +43,25 @@ export const trocaRouter = router({
     .mutation(async ({ ctx, input }) => {
       if (ctx.user.role !== "admin") await assertQuartelAccess(ctx.user.id, input.quartelId);
       return createTroca(input);
+    }),
+
+  /** Atualiza uma troca de serviço */
+  update: protectedProcedure
+    .input(z.object({
+      id: z.number(),
+      quartelId: z.number(),
+      bombeiroEntraId: z.number().optional(),
+      bombeireSaiId: z.number().optional(),
+      dataTroca: z.string().optional(),
+      dataPagamento: z.string().nullable().optional(),
+      numeroSEI: z.string().nullable().optional(),
+      numeroParte: z.string().nullable().optional(),
+      observacao: z.string().nullable().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      if (ctx.user.role !== "admin") await assertQuartelAccess(ctx.user.id, input.quartelId);
+      const { id, quartelId, ...fields } = input;
+      return updateTroca(id, quartelId, fields);
     }),
 
   /** Remove uma troca de serviço */

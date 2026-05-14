@@ -6,8 +6,14 @@ import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { AppLayout } from "@/components/AppLayout";
 import { TeamBadge } from "@/components/TeamBadge";
-import { Loader2, Users, AlertTriangle, TrendingUp, Clock, UserX, ArrowLeftRight } from "lucide-react";
+import { Loader2, Users, AlertTriangle, TrendingUp, Clock, UserX, ArrowLeftRight, Pencil, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from "sonner";
 
 // Ciclo de prontidões: referência 01/Jan/2026 = Verde
 const CYCLE_EQUIPES = ['Prontidão Verde', 'Prontidão Amarela', 'Prontidão Azul'] as const;
@@ -51,12 +57,53 @@ export default function Dashboard() {
     { enabled: !!quartelId }
   );
 
-  // Trocas do mês atual (para filtrar as de hoje)
+  // Trocas do mês atual
   const [hojeQuery] = useState(() => new Date());
-  const { data: trocasHoje } = trpc.troca.list.useQuery(
+  const { data: trocasHoje, refetch: refetchTrocas } = trpc.troca.list.useQuery(
     { quartelId: quartelId!, ano: hojeQuery.getFullYear(), mes: hojeQuery.getMonth() },
     { enabled: !!quartelId }
   );
+
+  // Estado do modal de edição de troca
+  const [editTroca, setEditTroca] = useState<null | {
+    id: number; quartelId: number;
+    bombeiroEntraId: number; bombeireSaiId: number;
+    dataTroca: string; dataPagamento: string;
+    numeroSEI: string; numeroParte: string;
+  }>(null);
+
+  const updateTroca = trpc.troca.update.useMutation({
+    onSuccess: () => { toast.success("Troca atualizada!"); setEditTroca(null); refetchTrocas(); },
+    onError: (e) => toast.error(e.message),
+  });
+
+  function handleEditTroca(t: NonNullable<typeof trocasHoje>[number]) {
+    const fmt = (d: any) => d ? String(d).split('T')[0] : '';
+    setEditTroca({
+      id: t.id,
+      quartelId: t.quartelId,
+      bombeiroEntraId: t.bombeiroEntraId,
+      bombeireSaiId: t.bombeireSaiId,
+      dataTroca: fmt(t.dataTroca),
+      dataPagamento: fmt(t.dataPagamento),
+      numeroSEI: t.numeroSEI || '',
+      numeroParte: t.numeroParte || '',
+    });
+  }
+
+  function handleSaveEditTroca() {
+    if (!editTroca) return;
+    updateTroca.mutate({
+      id: editTroca.id,
+      quartelId: editTroca.quartelId,
+      bombeiroEntraId: editTroca.bombeiroEntraId,
+      bombeireSaiId: editTroca.bombeireSaiId,
+      dataTroca: editTroca.dataTroca,
+      dataPagamento: editTroca.dataPagamento || null,
+      numeroSEI: editTroca.numeroSEI || null,
+      numeroParte: editTroca.numeroParte || null,
+    });
+  }
 
   if (loading || !quartelId) {
     return (
@@ -280,6 +327,153 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Trocas do Mês */}
+        <Card className="bg-card border-border">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-semibold text-foreground flex items-center gap-2" style={{ fontFamily: "Montserrat, sans-serif" }}>
+              <ArrowLeftRight className="w-4 h-4 text-amber-400" />
+              Trocas de Serviço — {hojeQuery.toLocaleString('pt-BR', { month: 'long', year: 'numeric' })}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {!trocasHoje || trocasHoje.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">Nenhuma troca registrada neste mês.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-border/50">
+                      <th className="text-left py-2 pr-3 text-muted-foreground font-semibold">Data</th>
+                      <th className="text-left py-2 pr-3 text-emerald-400 font-semibold">Entra</th>
+                      <th className="text-left py-2 pr-3 text-red-400 font-semibold">Sai</th>
+                      <th className="text-left py-2 pr-3 text-muted-foreground font-semibold">Pagamento</th>
+                      <th className="text-left py-2 pr-3 text-muted-foreground font-semibold">SEI</th>
+                      <th className="text-left py-2 pr-3 text-muted-foreground font-semibold">Parte</th>
+                      <th className="py-2"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {trocasHoje.map(t => {
+                      const fmt = (d: any) => d ? new Date(String(d).split('T')[0] + 'T12:00:00').toLocaleDateString('pt-BR') : '-';
+                      const nomeEntra = t.bombeiroEntra?.nomeGuerra || t.bombeiroEntra?.nome || '?';
+                      const nomeSai = t.bombeireSai?.nomeGuerra || t.bombeireSai?.nome || '?';
+                      const postoEntra = t.bombeiroEntra?.posto || '';
+                      const postoSai = t.bombeireSai?.posto || '';
+                      return (
+                        <tr key={t.id} className="border-b border-border/30 hover:bg-secondary/30 transition-colors">
+                          <td className="py-2 pr-3 font-medium text-foreground">{fmt(t.dataTroca)}</td>
+                          <td className="py-2 pr-3">
+                            <span className="text-emerald-400 font-semibold">{postoEntra} {nomeEntra}</span>
+                          </td>
+                          <td className="py-2 pr-3">
+                            <span className="text-red-400 font-semibold">{postoSai} {nomeSai}</span>
+                          </td>
+                          <td className="py-2 pr-3 text-muted-foreground">{fmt(t.dataPagamento)}</td>
+                          <td className="py-2 pr-3 text-muted-foreground">{t.numeroSEI || '-'}</td>
+                          <td className="py-2 pr-3 text-muted-foreground">{t.numeroParte || '-'}</td>
+                          <td className="py-2">
+                            <button
+                              onClick={() => handleEditTroca(t)}
+                              className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                              title="Editar troca"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Modal de edição de troca */}
+        <Dialog open={!!editTroca} onOpenChange={(open) => { if (!open) setEditTroca(null); }}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <ArrowLeftRight className="w-4 h-4 text-primary" />
+                Editar Troca de Serviço
+              </DialogTitle>
+            </DialogHeader>
+            {editTroca && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-1 block">Entra (assume o serviço)</Label>
+                    <Select
+                      value={String(editTroca.bombeiroEntraId)}
+                      onValueChange={v => setEditTroca(prev => prev ? { ...prev, bombeiroEntraId: Number(v) } : null)}
+                    >
+                      <SelectTrigger className="h-9 text-xs border-emerald-500/50 focus:ring-emerald-500/30">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(bombeiros || []).map(b => (
+                          <SelectItem key={b.id} value={String(b.id)} className="text-xs">
+                            {b.posto} {b.nomeGuerra || b.nome}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-1 block">Sai (cede o serviço)</Label>
+                    <Select
+                      value={String(editTroca.bombeireSaiId)}
+                      onValueChange={v => setEditTroca(prev => prev ? { ...prev, bombeireSaiId: Number(v) } : null)}
+                    >
+                      <SelectTrigger className="h-9 text-xs border-red-500/50 focus:ring-red-500/30">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(bombeiros || []).map(b => (
+                          <SelectItem key={b.id} value={String(b.id)} className="text-xs">
+                            {b.posto} {b.nomeGuerra || b.nome}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-1 block">Data da Troca</Label>
+                    <Input type="date" className="h-9 text-xs" value={editTroca.dataTroca}
+                      onChange={e => setEditTroca(prev => prev ? { ...prev, dataTroca: e.target.value } : null)} />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-1 block">Data de Pagamento</Label>
+                    <Input type="date" className="h-9 text-xs" value={editTroca.dataPagamento}
+                      onChange={e => setEditTroca(prev => prev ? { ...prev, dataPagamento: e.target.value } : null)} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-1 block">Nº SEI</Label>
+                    <Input className="h-9 text-xs" placeholder="Ex: 057000..." value={editTroca.numeroSEI}
+                      onChange={e => setEditTroca(prev => prev ? { ...prev, numeroSEI: e.target.value } : null)} />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-1 block">Parte Nº</Label>
+                    <Input className="h-9 text-xs" placeholder="Ex: 93" value={editTroca.numeroParte}
+                      onChange={e => setEditTroca(prev => prev ? { ...prev, numeroParte: e.target.value } : null)} />
+                  </div>
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button variant="outline" size="sm" onClick={() => setEditTroca(null)}>Cancelar</Button>
+              <Button size="sm" onClick={handleSaveEditTroca} disabled={updateTroca.isPending}>
+                {updateTroca.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Salvar'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Saldos FO */}
         <Card className="bg-card border-border">
