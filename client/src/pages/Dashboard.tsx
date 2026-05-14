@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { AppLayout } from "@/components/AppLayout";
 import { TeamBadge } from "@/components/TeamBadge";
-import { Loader2, Users, AlertTriangle, TrendingUp, Clock, UserX, ArrowLeftRight, Pencil, X } from "lucide-react";
+import { Loader2, Users, AlertTriangle, TrendingUp, Clock, UserX, ArrowLeftRight, Pencil, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -76,6 +76,16 @@ export default function Dashboard() {
     onSuccess: () => { toast.success("Troca atualizada!"); setEditTroca(null); refetchTrocas(); },
     onError: (e) => toast.error(e.message),
   });
+
+  const deleteTroca = trpc.troca.delete.useMutation({
+    onSuccess: () => { toast.success("Troca removida!"); refetchTrocas(); },
+    onError: (e) => toast.error(e.message),
+  });
+
+  function handleDeleteTroca(id: number, quartelId: number, descricao: string) {
+    if (!confirm(`Remover a troca "${descricao}"? Esta ação não pode ser desfeita.`)) return;
+    deleteTroca.mutate({ id, quartelId });
+  }
 
   function handleEditTroca(t: NonNullable<typeof trocasHoje>[number]) {
     const fmt = (d: any) => d ? String(d).split('T')[0] : '';
@@ -373,13 +383,23 @@ export default function Dashboard() {
                           <td className="py-2 pr-3 text-muted-foreground">{t.numeroSEI || '-'}</td>
                           <td className="py-2 pr-3 text-muted-foreground">{t.numeroParte || '-'}</td>
                           <td className="py-2">
-                            <button
-                              onClick={() => handleEditTroca(t)}
-                              className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
-                              title="Editar troca"
-                            >
-                              <Pencil className="w-3.5 h-3.5" />
-                            </button>
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => handleEditTroca(t)}
+                                className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                                title="Editar troca"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteTroca(t.id, t.quartelId, `${nomeEntra} ↔ ${nomeSai} em ${fmt(t.dataTroca)}`)}
+                                className="p-1 rounded hover:bg-red-500/20 text-muted-foreground hover:text-red-400 transition-colors"
+                                title="Excluir troca"
+                                disabled={deleteTroca.isPending}
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
