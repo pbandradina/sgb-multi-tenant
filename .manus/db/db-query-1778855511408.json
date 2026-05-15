@@ -1,0 +1,9 @@
+{
+  "query": "UPDATE afastamentos SET dataInicio = '2026-05-15', dataFim = '2026-05-17' WHERE id = 240002;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2pbRGdBvu4fe5ZT.root --database 2PAb8cXTT89NbT9HS42VfF --execute UPDATE afastamentos SET dataInicio = '2026-05-15', dataFim = '2026-05-17' WHERE id = 240002;",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 312
+}

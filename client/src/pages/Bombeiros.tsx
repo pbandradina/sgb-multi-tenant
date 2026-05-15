@@ -209,6 +209,10 @@ export default function Bombeiros() {
       toast.error("Preencha o código e a data de início.");
       return;
     }
+    if (codigoForm.dataFim && codigoForm.dataFim < codigoForm.dataInicio) {
+      toast.error("A data de fim não pode ser anterior à data de início.");
+      return;
+    }
     if (codigoForm.tipo === "afastamento") {
       if (!codigoForm.siglaAfastamento || !codigoForm.dataFim) {
         toast.error("Preencha a sigla e a data fim do afastamento.");
