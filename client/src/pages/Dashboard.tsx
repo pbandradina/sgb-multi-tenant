@@ -239,21 +239,6 @@ export default function Dashboard() {
           <Card className="bg-card border-border">
             <CardContent className="p-5">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Afastados</span>
-                <div className="w-8 h-8 rounded-lg bg-amber-500/15 flex items-center justify-center">
-                  <UserX className="w-4 h-4 text-amber-400" />
-                </div>
-              </div>
-              <p className="text-3xl font-bold text-foreground" style={{ fontFamily: "Montserrat, sans-serif" }}>
-                {loadingAfastamentos ? <Loader2 className="w-6 h-6 animate-spin" /> : totalAfastados}
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">afastamentos ativos</p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-card border-border">
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between mb-3">
                 <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">FO Pendentes</span>
                 <div className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center">
                   <Clock className="w-4 h-4 text-primary" />
