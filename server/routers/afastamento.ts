@@ -7,6 +7,7 @@ import {
   getAfastamentosAtivos,
   createAfastamento,
   deleteAfastamento,
+  updateAfastamento,
   getUserQuartelRole,
   getBombeirosByQuartel,
   calcularSaldoFMO,
@@ -93,6 +94,31 @@ export const afastamentoRouter = router({
     .mutation(async ({ ctx, input }) => {
       if (ctx.user.role !== "admin") await assertQuartelAccess(ctx.user.id, input.quartelId);
       await deleteAfastamento(input.id, input.quartelId);
+      return { success: true };
+    }),
+
+  update: protectedProcedure
+    .input(z.object({
+      id: z.number(),
+      quartelId: z.number(),
+      tipo: z.enum(TIPOS_AFASTAMENTO),
+      dataInicio: z.string(),
+      dataFim: z.string(),
+      descricao: z.string().optional(),
+      periodoConcessao: z.string().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      if (ctx.user.role !== "admin") await assertQuartelAccess(ctx.user.id, input.quartelId);
+      if (input.dataFim < input.dataInicio) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Data de fim não pode ser anterior à data de início" });
+      }
+      await updateAfastamento(input.id, input.quartelId, {
+        tipo: input.tipo,
+        dataInicio: input.dataInicio,
+        dataFim: input.dataFim,
+        descricao: input.descricao,
+        periodoConcessao: input.periodoConcessao,
+      });
       return { success: true };
     }),
 });

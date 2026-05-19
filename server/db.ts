@@ -332,6 +332,31 @@ export async function deleteAfastamento(id: number, quartelId: number) {
     .where(and(eq(afastamentos.id, id), eq(afastamentos.quartelId, quartelId)));
 }
 
+export async function updateAfastamento(
+  id: number,
+  quartelId: number,
+  data: {
+    tipo: string;
+    dataInicio: string;
+    dataFim: string;
+    descricao?: string;
+    periodoConcessao?: string;
+  }
+) {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  await db
+    .update(afastamentos)
+    .set({
+      tipo: data.tipo as any,
+      dataInicio: data.dataInicio as any,
+      dataFim: data.dataFim as any,
+      descricao: data.descricao ?? null,
+      periodoConcessao: data.periodoConcessao ?? null,
+    })
+    .where(and(eq(afastamentos.id, id), eq(afastamentos.quartelId, quartelId)));
+}
+
 // ─── Histórico de Vínculos Bombeiro-Prontidão ─────────────────────────────────────
 
 export async function getHistoricoByBombeiro(bombeiroId: number, quartelId: number) {

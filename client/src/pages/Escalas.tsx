@@ -9,7 +9,7 @@ import { type Equipe } from "@/components/TeamBadge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Loader2, ChevronLeft, ChevronRight, ArrowLeftRight } from "lucide-react";
+import { Loader2, ChevronLeft, ChevronRight, ArrowLeftRight, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SIGLAS_AFASTAMENTO } from "@/pages/Afastamentos";
 import { toast } from "sonner";
@@ -114,6 +114,16 @@ export default function Escalas() {
   const [periodoConcessao, setPeriodoConcessao] = useState<string>("");
   // Bombeiro selecionado no filtro do cabeçalho
   const [filteredBombeiroId, setFilteredBombeiroId] = useState<number | null>(null);
+
+  // ─── Estado do modal de Edição de Afastamento ───────────────────────────────
+  const [editAfModal, setEditAfModal] = useState<{
+    id: number;
+    bombeiroId: number;
+    tipo: string;
+    dataInicio: string;
+    dataFim: string;
+    periodoConcessao?: string;
+  } | null>(null);
 
   // ─── Estado do modal de Troca ─────────────────────────────────────────────
   const [trocaModal, setTrocaModal] = useState(false);
@@ -231,6 +241,32 @@ export default function Escalas() {
     },
     onError: (err) => toast.error(err.message),
   });
+
+  const updateAfastamento = trpc.afastamento.update.useMutation({
+    onSuccess: () => {
+      toast.success("Afastamento atualizado!");
+      refetchAfastamentos();
+      utils.afastamento.listByMes.invalidate();
+      setEditAfModal(null);
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  function handleSaveEditAfastamento() {
+    if (!editAfModal || !quartelId) return;
+    if (editAfModal.dataFim < editAfModal.dataInicio) {
+      toast.error("Data de fim não pode ser anterior à data de início");
+      return;
+    }
+    updateAfastamento.mutate({
+      id: editAfModal.id,
+      quartelId,
+      tipo: editAfModal.tipo as any,
+      dataInicio: editAfModal.dataInicio,
+      dataFim: editAfModal.dataFim,
+      periodoConcessao: editAfModal.periodoConcessao,
+    });
+  }
 
   const prevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
   const nextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
@@ -513,14 +549,37 @@ export default function Escalas() {
                     <div className="w-full mt-1 flex flex-col gap-0.5 items-center">
                       {siglasDoDia.slice(0, 3).map((item, i) => (
                         <div key={i} className="flex flex-col items-center gap-0">
-                          <span
-                            title={item.sigla === 'FMO' && item.periodoConcessao
-                              ? `${item.bombeiroNome} — FMO (período: ${item.periodoConcessao})`
-                              : `${item.bombeiroNome} — ${item.sigla}`}
-                            className={`inline-flex items-center justify-center rounded text-[9px] font-black px-1.5 py-0.5 leading-none ${item.cor}`}
-                          >
-                            {item.sigla}
-                          </span>
+                          <div className="flex items-center gap-0.5">
+                            <span
+                              title={item.sigla === 'FMO' && item.periodoConcessao
+                                ? `${item.bombeiroNome} — FMO (período: ${item.periodoConcessao})`
+                                : `${item.bombeiroNome} — ${item.sigla}`}
+                              className={`inline-flex items-center justify-center rounded text-[9px] font-black px-1.5 py-0.5 leading-none ${item.cor}`}
+                            >
+                              {item.sigla}
+                            </span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const af = afastamentosMes?.find((a: any) => (a.afastamento ?? a).id === item.afastamentoId);
+                                const afData = af ? ((af as any).afastamento ?? af) : null;
+                                if (afData) {
+                                  setEditAfModal({
+                                    id: afData.id,
+                                    bombeiroId: afData.bombeiroId,
+                                    tipo: afData.tipo,
+                                    dataInicio: toDateStr(parseDateLocal(afData.dataInicio as any)),
+                                    dataFim: toDateStr(parseDateLocal(afData.dataFim as any)),
+                                    periodoConcessao: afData.periodoConcessao ?? undefined,
+                                  });
+                                }
+                              }}
+                              className="text-primary/70 hover:text-primary transition-colors p-0.5 rounded hover:bg-primary/10"
+                              title={`Editar ${item.sigla} de ${item.bombeiroNome}`}
+                            >
+                              <Pencil className="w-2.5 h-2.5" />
+                            </button>
+                          </div>
                           {item.periodoConcessao && (
                             <span
                               className="text-[8px] font-bold leading-tight text-center mt-0.5"
@@ -672,17 +731,36 @@ export default function Escalas() {
                             <span className="text-[10px] text-purple-400">{af.periodoConcessao}</span>
                           )}
                         </div>
-                        <button
-                          onClick={() => {
-                            if (confirm(`Remover ${af.tipo} de ${bom?.nome ?? 'bombeiro'}?`)) {
-                              deleteAfastamento.mutate({ id: af.id, quartelId: quartelId! });
-                            }
-                          }}
-                          className="text-destructive hover:text-destructive/80 text-xs font-bold px-2 py-0.5 rounded hover:bg-destructive/10 transition-colors flex-shrink-0"
-                          title="Remover afastamento"
-                        >
-                          ✕ Remover
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditAfModal({
+                                id: af.id,
+                                bombeiroId: af.bombeiroId,
+                                tipo: af.tipo,
+                                dataInicio: toDateStr(parseDateLocal(af.dataInicio as any)),
+                                dataFim: toDateStr(parseDateLocal(af.dataFim as any)),
+                                periodoConcessao: af.periodoConcessao ?? undefined,
+                              });
+                            }}
+                            className="text-primary hover:text-primary/80 text-xs font-bold px-2 py-0.5 rounded hover:bg-primary/10 transition-colors flex-shrink-0"
+                            title="Editar afastamento"
+                          >
+                            ✎ Editar
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (confirm(`Remover ${af.tipo} de ${bom?.nome ?? 'bombeiro'}?`)) {
+                                deleteAfastamento.mutate({ id: af.id, quartelId: quartelId! });
+                              }
+                            }}
+                            className="text-destructive hover:text-destructive/80 text-xs font-bold px-2 py-0.5 rounded hover:bg-destructive/10 transition-colors flex-shrink-0"
+                            title="Remover afastamento"
+                          >
+                            ✕ Remover
+                          </button>
+                        </div>
                       </div>
                     );
                   })}
@@ -896,6 +974,110 @@ export default function Escalas() {
               Registrar Troca
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+      {/* Modal de Edição de Afastamento */}
+      <Dialog open={!!editAfModal} onOpenChange={(open) => { if (!open) setEditAfModal(null); }}>
+        <DialogContent className="max-w-md bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-foreground flex items-center gap-2">
+              <Pencil className="w-4 h-4 text-primary" />
+              Editar Afastamento
+            </DialogTitle>
+          </DialogHeader>
+
+          {editAfModal && (
+            <div className="space-y-4">
+              {/* Nome do bombeiro */}
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">Bombeiro</label>
+                <div className="px-3 py-2 rounded-lg bg-secondary/50 border border-border text-sm text-foreground">
+                  {bombeiros?.find(b => b.id === editAfModal.bombeiroId)
+                    ? bombeiroLabel(bombeiros.find(b => b.id === editAfModal.bombeiroId)!)
+                    : `Bombeiro #${editAfModal.bombeiroId}`}
+                </div>
+              </div>
+
+              {/* Tipo de afastamento */}
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">Sigla / Tipo</label>
+                <div className="grid grid-cols-3 gap-1.5 max-h-48 overflow-y-auto pr-1">
+                  {SIGLAS_AFASTAMENTO.map(s => (
+                    <button
+                      key={s.sigla}
+                      onClick={() => setEditAfModal(prev => prev ? { ...prev, tipo: s.sigla } : null)}
+                      className={cn(
+                        "flex flex-col items-center gap-0.5 rounded-lg px-2 py-2 text-xs font-medium border-2 transition-all",
+                        editAfModal.tipo === s.sigla
+                          ? "border-primary ring-2 ring-primary/30"
+                          : "border-transparent",
+                        "bg-secondary/40 hover:bg-secondary/70"
+                      )}
+                    >
+                      <span className={cn("inline-flex items-center justify-center rounded px-1.5 py-0.5 text-[10px] font-black leading-none", s.cor)}>
+                        {s.sigla}
+                      </span>
+                      <span className="text-[9px] text-muted-foreground leading-tight text-center">{s.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Datas */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">Data Início</label>
+                  <input
+                    type="date"
+                    className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground"
+                    value={editAfModal.dataInicio}
+                    onChange={e => setEditAfModal(prev => prev ? { ...prev, dataInicio: e.target.value } : null)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">Data Fim</label>
+                  <input
+                    type="date"
+                    className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground"
+                    value={editAfModal.dataFim}
+                    onChange={e => setEditAfModal(prev => prev ? { ...prev, dataFim: e.target.value } : null)}
+                  />
+                </div>
+              </div>
+
+              {/* Período de concessão (apenas FMO) */}
+              {editAfModal.tipo === "FMO" && (
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">Período de concessão</label>
+                  <input
+                    type="text"
+                    className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground"
+                    placeholder="Ex: 22JAN a 15FEV"
+                    value={editAfModal.periodoConcessao ?? ""}
+                    onChange={e => setEditAfModal(prev => prev ? { ...prev, periodoConcessao: e.target.value } : null)}
+                  />
+                </div>
+              )}
+
+              <div className="flex gap-2 pt-1">
+                <Button
+                  variant="outline"
+                  className="flex-1 border-border"
+                  onClick={() => setEditAfModal(null)}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
+                  onClick={handleSaveEditAfastamento}
+                  disabled={updateAfastamento.isPending}
+                >
+                  {updateAfastamento.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                  Salvar Alterações
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </AppLayout>
