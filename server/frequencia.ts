@@ -90,8 +90,8 @@ function calcularValorDia(
     return 3; // 18-24h
   }
 
-  // Dia sem serviço e sem afastamento → vazio (não preenche)
-  return "";
+  // Dia sem serviço e sem afastamento → A (demais afastamentos)
+  return "A";
 }
 
 export async function gerarPlanilhaFrequencia(
