@@ -77,12 +77,20 @@ function calcularValorDia(
   const chave = dateToYMD(date);
   const sigla = afastamentosNoDia.get(chave);
 
-  // Dia cedido por troca: bombeiro não trabalhou
-  if (trocasSai.has(chave)) return "A";
-
+  // Afastamento registrado tem prioridade sobre qualquer outra regra
   if (sigla) {
     return siglaParaValor(sigla);
   }
+
+  // Regime Administrativo: seg-sex = 1 (8h-18h), sáb/dom = A
+  if (equipeAtiva === "Administrativo") {
+    const diaSemana = date.getDay(); // 0=Dom, 6=Sáb
+    if (diaSemana === 0 || diaSemana === 6) return "A";
+    return 1; // dia útil
+  }
+
+  // Dia cedido por troca: bombeiro não trabalhou
+  if (trocasSai.has(chave)) return "A";
 
   // Dia de serviço da prontidão do bombeiro (ou dia de troca que ele entrou)
   const prontidaoDoDia = getProntidaoDoDia(date);
