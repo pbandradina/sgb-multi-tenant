@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { formatGraduacao } from "../../../shared/utils";
 
 // Ciclo de prontidões: referência 01/Jan/2026 = Verde
 const CYCLE_EQUIPES = ['Prontidão Verde', 'Prontidão Amarela', 'Prontidão Azul'] as const;
@@ -157,11 +158,11 @@ export default function Dashboard() {
 
   // Lista final de presentes: equipe do dia (exceto afastados e quem saiu por troca) + quem entrou por troca
   const POSTO_ORDER: Record<string, number> = {
-    '1º Sgt PM': 1, '1º Sargento': 1,
-    '2º Sgt PM': 2, '2º Sargento': 2,
-    '3º Sgt PM': 3, '3º Sargento': 3,
-    'Cb PM': 4, 'Cabo': 4,
-    'Sd PM': 5, 'Soldado': 5,
+    '1º Sgt': 1, '1º Sgt PM': 1, '1º Sargento': 1,
+    '2º Sgt': 2, '2º Sgt PM': 2, '2º Sargento': 2,
+    '3º Sgt': 3, '3º Sgt PM': 3, '3º Sargento': 3,
+    'Cb': 4, 'Cb PM': 4, 'Cabo': 4,
+    'Sd': 5, 'Sd PM': 5, 'Soldado': 5,
   };
   const sortBombeiros = (a: { posto?: string | null; nomeGuerra?: string | null; nome: string }, b: { posto?: string | null; nomeGuerra?: string | null; nome: string }) => {
     const pa = POSTO_ORDER[a.posto || ''] ?? 99;
@@ -218,19 +219,27 @@ export default function Dashboard() {
                 <div className="space-y-1 max-h-48 overflow-y-auto border-t border-border/40 pt-2">
                   {presentesHoje.length === 0 ? (
                     <p className="text-xs text-muted-foreground text-center py-2">Nenhum bombeiro presente</p>
-                  ) : presentesHoje.map((b) => (
-                    <div key={b.id} className="flex items-center justify-between gap-2 py-0.5">
-                      <span className="text-xs text-foreground truncate">
-                        <span className="text-muted-foreground mr-1">{b.posto}</span>
-                        {b.nomeGuerra || b.nome}
-                      </span>
-                      {b.isTroca && (
-                        <span className="flex items-center gap-0.5 text-[10px] text-amber-400 font-semibold shrink-0">
-                          <ArrowLeftRight className="w-3 h-3" />(troca)
+                  ) : presentesHoje.map((b) => {
+                    const trocaInfo = b.isTroca ? trocasDeHoje.find(t => t.bombeiroEntraId === b.id) : null;
+                    const titular = trocaInfo ? (bombeiros || []).find(bx => bx.id === trocaInfo.bombeireSaiId) : null;
+                    const titularLabel = titular
+                      ? `${formatGraduacao(titular.posto)} ${titular.nomeGuerra || titular.nome}`
+                      : '';
+                    return (
+                      <div key={b.id} className="flex items-center justify-between gap-2 py-0.5">
+                        <span className="text-xs text-foreground truncate">
+                          <span className="text-muted-foreground mr-1">{formatGraduacao(b.posto)}</span>
+                          {b.nomeGuerra || b.nome}
                         </span>
-                      )}
-                    </div>
-                  ))}
+                        {b.isTroca && (
+                          <span className="flex items-center gap-0.5 text-[10px] text-amber-400 font-semibold shrink-0">
+                            <ArrowLeftRight className="w-3 h-3" />
+                            {titularLabel ? `(${titularLabel})` : '(troca)'}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
@@ -359,10 +368,10 @@ export default function Dashboard() {
                         <tr key={t.id} className="border-b border-border/30 hover:bg-secondary/30 transition-colors">
                           <td className="py-2 pr-3 font-medium text-foreground">{fmt(t.dataTroca)}</td>
                           <td className="py-2 pr-3">
-                            <span className="text-emerald-400 font-semibold">{postoEntra} {nomeEntra}</span>
+                            <span className="text-emerald-400 font-semibold">{formatGraduacao(postoEntra)} {nomeEntra}</span>
                           </td>
                           <td className="py-2 pr-3">
-                            <span className="text-red-400 font-semibold">{postoSai} {nomeSai}</span>
+                            <span className="text-red-400 font-semibold">{formatGraduacao(postoSai)} {nomeSai}</span>
                           </td>
                           <td className="py-2 pr-3 text-muted-foreground">{fmt(t.dataPagamento)}</td>
                           <td className="py-2 pr-3 text-muted-foreground">{t.numeroSEI || '-'}</td>
@@ -420,7 +429,7 @@ export default function Dashboard() {
                       <SelectContent>
                         {(bombeiros || []).map(b => (
                           <SelectItem key={b.id} value={String(b.id)} className="text-xs">
-                            {b.posto} {b.nomeGuerra || b.nome}
+                            {formatGraduacao(b.posto)} {b.nomeGuerra || b.nome}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -438,7 +447,7 @@ export default function Dashboard() {
                       <SelectContent>
                         {(bombeiros || []).map(b => (
                           <SelectItem key={b.id} value={String(b.id)} className="text-xs">
-                            {b.posto} {b.nomeGuerra || b.nome}
+                            {formatGraduacao(b.posto)} {b.nomeGuerra || b.nome}
                           </SelectItem>
                         ))}
                       </SelectContent>

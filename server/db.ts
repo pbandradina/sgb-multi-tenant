@@ -1,4 +1,4 @@
-import { and, eq, gte, lte, desc, sql } from "drizzle-orm";
+import { and, eq, gte, lte, desc, sql, or } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   InsertUser,
@@ -768,8 +768,11 @@ export async function getTrocasByQuartel(quartelId: number, ano: number, mes: nu
     .where(
       and(
         eq(trocasServico.quartelId, quartelId),
-        gte(trocasServico.dataTroca, primeiroDia),
-        lte(trocasServico.dataTroca, ultimoDia)
+        // Incluir trocas cujo dataTroca OU dataPagamento cai no mês
+        or(
+          and(gte(trocasServico.dataTroca, primeiroDia), lte(trocasServico.dataTroca, ultimoDia)),
+          and(gte(trocasServico.dataPagamento, primeiroDia), lte(trocasServico.dataPagamento, ultimoDia))
+        )
       )
     )
     .orderBy(trocasServico.dataTroca);

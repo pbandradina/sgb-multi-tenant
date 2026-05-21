@@ -14,6 +14,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Card, CardContent } from "@/components/ui/card";
 import { Loader2, Plus, Trash2, Search, ClipboardList, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { formatGraduacao } from "../../../shared/utils";
 
 // Siglas de afastamentos conforme sistema anterior
 export const SIGLAS_AFASTAMENTO = [
@@ -205,7 +206,7 @@ export default function Afastamentos() {
                             </div>
                             <div>
                               <p className="text-sm font-medium text-foreground">{item.bombeiro.nome}</p>
-                              <p className="text-xs text-muted-foreground">{item.bombeiro.posto}</p>
+                              <p className="text-xs text-muted-foreground">{formatGraduacao(item.bombeiro.posto)}</p>
                             </div>
                           </div>
                         </td>

@@ -120,11 +120,11 @@ export async function gerarPlanilhaFrequencia(
     "1º Sargento": 1, "2º Sargento": 2, "3º Sargento": 3, "Cabo": 4, "Soldado": 5,
   };
   const POSTO_ABREV: Record<string, string> = {
-    "1º Sargento": "1º Sgt PM",
-    "2º Sargento": "2º Sgt PM",
-    "3º Sargento": "3º Sgt PM",
-    "Cabo":        "Cb PM",
-    "Soldado":     "Sd PM",
+    "1º Sargento": "1º Sgt",
+    "2º Sargento": "2º Sgt",
+    "3º Sargento": "3º Sgt",
+    "Cabo":        "Cb",
+    "Soldado":     "Sd",
   };
 
   const bombeirosList = await db

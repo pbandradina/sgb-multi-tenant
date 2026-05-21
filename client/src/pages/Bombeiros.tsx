@@ -17,6 +17,7 @@ import { Loader2, Plus, Trash2, Search, Users, UserCheck, CalendarRange, History
 import { toast } from "sonner";
 import { SIGLAS_AFASTAMENTO } from "@/pages/Afastamentos";
 import { cn } from "@/lib/utils";
+import { formatGraduacao } from "../../../shared/utils";
 
 const POSTOS = [
   "Soldado", "Cabo", "3º Sargento", "2º Sargento", "1º Sargento",
@@ -342,7 +343,7 @@ export default function Bombeiros() {
                           </div>
                         </td>
                         <td className="px-4 py-3 text-sm text-muted-foreground">{b.nome}</td>
-                        <td className="px-4 py-3 text-sm text-muted-foreground">{b.posto}</td>
+                        <td className="px-4 py-3 text-sm text-muted-foreground">{formatGraduacao(b.posto)}</td>
                         <td className="px-4 py-3"><TeamBadge equipe={b.equipe as Equipe} size="sm" /></td>
                         <td className="px-4 py-3 text-sm text-muted-foreground">
                           {formatDateLocal(b.dataInicio)}

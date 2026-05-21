@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Loader2, ChevronLeft, ChevronRight, ArrowLeftRight, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SIGLAS_AFASTAMENTO } from "@/pages/Afastamentos";
+import { formatGraduacao } from "../../../shared/utils";
 import { toast } from "sonner";
 
 const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
@@ -40,16 +41,8 @@ const POSTO_ORDEM: Record<string, number> = {
   "Soldado":     5,
 };
 
-const POSTO_ABREV: Record<string, string> = {
-  "1º Sargento": "1º Sgt PM",
-  "2º Sargento": "2º Sgt PM",
-  "3º Sargento": "3º Sgt PM",
-  "Cabo":        "Cb PM",
-  "Soldado":     "Sd PM",
-};
-
 function getPostoAbrev(posto: string): string {
-  return POSTO_ABREV[posto] ?? posto;
+  return formatGraduacao(posto);
 }
 
 function sortBombeiros<T extends { posto: string; nomeGuerra?: string | null; nome: string }>(list: T[]): T[] {
@@ -315,15 +308,28 @@ export default function Escalas() {
   }, [afastamentosMes, bombeiros, year, month]);
 
   // Mapa de trocas por data (YYYY-MM-DD) para indicador visual no calendário
+  // tipo: 'troca' = dia em que o bombeiro entra (dataTroca), 'pagamento' = dia em que o titular paga (dataPagamento)
   const trocasPorData = useMemo(() => {
-    const map: Record<string, { entra: string; sai: string }[]> = {};
+    const map: Record<string, { entra: string; sai: string; tipo: 'troca' | 'pagamento' }[]> = {};
     (trocasMes || []).forEach(t => {
-      if (!t.dataTroca) return;
-      const ds = toDateStr(parseDateLocal(t.dataTroca as any));
-      if (!map[ds]) map[ds] = [];
       const nomeEntra = t.bombeiroEntra?.nomeGuerra || t.bombeiroEntra?.nome || 'Desconhecido';
       const nomeSai = t.bombeireSai?.nomeGuerra || t.bombeireSai?.nome || 'Desconhecido';
-      map[ds].push({ entra: nomeEntra, sai: nomeSai });
+      // Dia da troca (quem entra)
+      if (t.dataTroca) {
+        const ds = toDateStr(parseDateLocal(t.dataTroca as any));
+        if (!map[ds]) map[ds] = [];
+        map[ds].push({ entra: nomeEntra, sai: nomeSai, tipo: 'troca' });
+      }
+      // Dia do pagamento (quem saiu agora trabalha para quitar)
+      if (t.dataPagamento) {
+        const dp = toDateStr(parseDateLocal(t.dataPagamento as any));
+        // Evitar duplicar se pagamento cair no mesmo dia da troca
+        if (!map[dp]) map[dp] = [];
+        const jaExiste = map[dp].some(x => x.entra === nomeEntra && x.sai === nomeSai && x.tipo === 'pagamento');
+        if (!jaExiste) {
+          map[dp].push({ entra: nomeEntra, sai: nomeSai, tipo: 'pagamento' });
+        }
+      }
     });
     return map;
   }, [trocasMes]);
@@ -517,15 +523,27 @@ export default function Escalas() {
                 >
               {day && colors && (
                 <>
-                  {/* Indicador de troca no canto superior direito */}
-                  {date && trocasPorData[toDateStr(date)] && (
-                    <div
-                      className="absolute top-1 right-1 flex items-center gap-0.5"
-                      title={trocasPorData[toDateStr(date)].map(t => `⇄ ${t.entra} ↔ ${t.sai}`).join('\n')}
-                    >
-                      <ArrowLeftRight className="w-3 h-3 text-amber-400" />
-                    </div>
-                  )}
+                  {/* Indicadores de troca no canto superior direito */}
+                  {date && trocasPorData[toDateStr(date)] && (() => {
+                    const entradas = trocasPorData[toDateStr(date)].filter(t => t.tipo === 'troca');
+                    const pagamentos = trocasPorData[toDateStr(date)].filter(t => t.tipo === 'pagamento');
+                    const tooltipEntradas = entradas.map(t => `⇄ Troca: ${t.entra} entra / ${t.sai} sai`).join('\n');
+                    const tooltipPagamentos = pagamentos.map(t => `⇄ Pgto: ${t.sai} paga (${t.entra} cedeu)`).join('\n');
+                    return (
+                      <div className="absolute top-1 right-1 flex items-center gap-0.5">
+                        {entradas.length > 0 && (
+                          <span title={tooltipEntradas}>
+                            <ArrowLeftRight className="w-3 h-3 text-amber-400" />
+                          </span>
+                        )}
+                        {pagamentos.length > 0 && (
+                          <span title={tooltipPagamentos}>
+                            <ArrowLeftRight className="w-3 h-3 text-violet-400" />
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })()}
                   {/* Número do dia */}
                   <div
                     className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm border-2 transition-all flex-shrink-0"
@@ -625,12 +643,24 @@ export default function Escalas() {
         {/* Nota informativa */}
         <div className="flex items-start gap-2 p-3 rounded-lg bg-secondary/30 border border-border">
           <span className="text-muted-foreground mt-0.5 flex-shrink-0 text-sm">ℹ</span>
-          <p className="text-xs text-muted-foreground">
-            Ciclo contínuo: <strong style={{ color: CYCLE_COLORS["Prontidão Verde"].text }}>VD</strong> (01/Jan/2026) { }
-            <strong style={{ color: CYCLE_COLORS["Prontidão Amarela"].text }}>AM</strong> (02/Jan) { }
-            <strong style={{ color: CYCLE_COLORS["Prontidão Azul"].text }}>AZ</strong> (03/Jan) → repetindo.
-            Clique em qualquer dia para registrar um afastamento diretamente na célula.
-          </p>
+          <div className="text-xs text-muted-foreground space-y-1">
+            <p>
+              Ciclo contínuo: <strong style={{ color: CYCLE_COLORS["Prontidão Verde"].text }}>VD</strong> (01/Jan/2026) { }
+              <strong style={{ color: CYCLE_COLORS["Prontidão Amarela"].text }}>AM</strong> (02/Jan) { }
+              <strong style={{ color: CYCLE_COLORS["Prontidão Azul"].text }}>AZ</strong> (03/Jan) → repetindo.
+              Clique em qualquer dia para registrar um afastamento diretamente na célula.
+            </p>
+            <p className="flex items-center gap-3">
+              <span className="flex items-center gap-1">
+                <ArrowLeftRight className="w-3 h-3 text-amber-400" />
+                <span className="text-amber-400 font-semibold">Troca</span> — dia em que o bombeiro entra no lugar do titular
+              </span>
+              <span className="flex items-center gap-1">
+                <ArrowLeftRight className="w-3 h-3 text-violet-400" />
+                <span className="text-violet-400 font-semibold">Pagamento</span> — dia em que o titular paga a troca
+              </span>
+            </p>
+          </div>
         </div>
 
         {/* Tabela de Trocas de Serviço do Mês */}

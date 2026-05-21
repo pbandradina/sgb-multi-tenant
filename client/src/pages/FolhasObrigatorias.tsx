@@ -13,6 +13,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Loader2, Search, TrendingUp, TrendingDown, Minus, RefreshCw, CheckCircle2, Clock, BarChart3 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { formatGraduacao } from "../../../shared/utils";
 
 // Cores por equipe
 const EQUIPE_COLORS: Record<string, { badge: string; text: string; short: string }> = {
@@ -188,7 +189,7 @@ export default function FolhasObrigatorias() {
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <p className="text-sm font-semibold text-foreground truncate">{(item.bombeiro as any).nomeGuerra?.trim() || item.bombeiro.nome}</p>
-                        <p className="text-xs text-muted-foreground truncate">{item.bombeiro.posto}</p>
+                         <p className="text-xs text-muted-foreground truncate">{formatGraduacao(item.bombeiro.posto)}</p>
                       </div>
                       <div className="flex items-center gap-1.5 flex-shrink-0">
                         <EquipeBadge equipe={equipe} />
