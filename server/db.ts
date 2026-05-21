@@ -658,6 +658,54 @@ export async function calcularSaldoFMO(bombeiroId: number, quartelId: number) {
 
   const totalDiasServico = diasDeServico.length;
 
+  // ─── Previsão de conclusão do ciclo atual ────────────────────────────────────
+  // Calcula quantos serviços faltam para completar 9 e projeta a data futura
+  let previsaoConclusaoCiclo: string | null = null;
+  if (cicloAtual > 0 && cicloAtual < 9) {
+    const servicosRestantes = 9 - cicloAtual;
+    // Determinar equipe atual do bombeiro
+    const equipeAtual = bombeiro.equipe;
+    // Projetar dias futuros de serviço a partir de amanhã
+    const amanha = new Date();
+    amanha.setDate(amanha.getDate() + 1);
+    amanha.setHours(0, 0, 0, 0);
+    let contagem = 0;
+    let dataProjetada: Date | null = null;
+    // Limite de busca: 2 anos no futuro para evitar loop infinito
+    const limite = new Date();
+    limite.setFullYear(limite.getFullYear() + 2);
+    for (let d = new Date(amanha); d <= limite; d.setDate(d.getDate() + 1)) {
+      const chaveD = dateToYMD(d);
+      // Verificar se é dia de serviço da equipe
+      if (getProntidaoDoDiaServer(d) !== equipeAtual) continue;
+      // Verificar se há afastamento interruptor neste dia futuro
+      const siglaFutura = afastamentoNoDia.get(chaveD);
+      if (siglaFutura && INTERRUPT_SIGLAS.has(siglaFutura)) {
+        // Afastamento interruptor futuro: ciclo será zerado, previsão inválida
+        previsaoConclusaoCiclo = null;
+        break;
+      }
+      // Dia cedido por troca: pular
+      if (diasCedidos.has(chaveD)) continue;
+      // Sigla de pausa: não conta mas não interrompe
+      if (siglaFutura && PAUSE_SIGLAS.has(siglaFutura)) continue;
+      contagem++;
+      if (contagem >= servicosRestantes) {
+        dataProjetada = new Date(d);
+        break;
+      }
+    }
+    if (dataProjetada) {
+      // Formatar como DD/MM/YYYY
+      const dd = String(dataProjetada.getDate()).padStart(2, "0");
+      const mm = String(dataProjetada.getMonth() + 1).padStart(2, "0");
+      const yyyy = dataProjetada.getFullYear();
+      previsaoConclusaoCiclo = `${dd}/${mm}/${yyyy}`;
+    }
+  } else if (cicloAtual === 0) {
+    previsaoConclusaoCiclo = null; // ciclo zerado ou não iniciado
+  }
+
   // FMO usadas (afastamentos do tipo FMO)
   const fmoUsadasRows = await db
     .select()
@@ -680,6 +728,7 @@ export async function calcularSaldoFMO(bombeiroId: number, quartelId: number) {
     elegivel: true,
     periodosConcessao,
     saldoCicloAtual: cicloAtual,
+    previsaoConclusaoCiclo,
   };
 }
 

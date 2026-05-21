@@ -174,6 +174,7 @@ export default function FolhasObrigatorias() {
               const conquistadas = item.saldo?.totalFMOGeradas ?? 0;
               const usadas = item.saldo?.fmoUsadas ?? 0;
               const cicloAtual = item.saldo?.saldoCicloAtual ?? 0;
+              const previsao: string | null = item.saldo?.previsaoConclusaoCiclo ?? null;
               const equipe: string = item.bombeiro?.equipe ?? "Administrativo";
               const ec = EQUIPE_COLORS[equipe] ?? EQUIPE_COLORS["Administrativo"];
 
@@ -241,6 +242,22 @@ export default function FolhasObrigatorias() {
                       </div>
                       <ProgressBar value={cicloAtual} max={9} />
                     </div>
+
+                    {/* Previsão de conclusão do ciclo */}
+                    {equipe !== "Administrativo" && (
+                      <div className="flex items-center justify-between pt-1 border-t border-border/40">
+                        <span className="text-[11px] text-muted-foreground">Previsão conclusão</span>
+                        {cicloAtual === 0 ? (
+                          <span className="text-[11px] text-muted-foreground italic">ciclo zerado</span>
+                        ) : cicloAtual >= 9 ? (
+                          <span className="text-[11px] font-semibold text-emerald-400">ciclo completo ✓</span>
+                        ) : previsao ? (
+                          <span className="text-[11px] font-semibold text-blue-400">{previsao}</span>
+                        ) : (
+                          <span className="text-[11px] text-amber-400 italic">interrompido</span>
+                        )}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               );
