@@ -32,6 +32,8 @@ export const SIGLAS_AFASTAMENTO = [
   { sigla: "TAF", label: "Teste Aptidão Física",       cor: "bg-emerald-600 text-white" },
   { sigla: "ME",  label: "Meio Expediente",            cor: "bg-sky-600 text-white" },
   { sigla: "AG",  label: "Aglutinada",                 cor: "bg-teal-600 text-white" },
+  { sigla: "FER", label: "Feriado",                     cor: "bg-cyan-600 text-white" },
+  { sigla: "PF",  label: "Ponto Facultativo",           cor: "bg-blue-500 text-white" },
 ] as const; // EX removido — expediente é tipo de escala, não afastamento
 
 type TipoAfastamento = typeof SIGLAS_AFASTAMENTO[number]["sigla"];

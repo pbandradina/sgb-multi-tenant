@@ -16,7 +16,7 @@ import {
 // Siglas de afastamentos conforme sistema anterior
 // EX (Expediente) removido — é tipo de escala semanal, não afastamento
 export const TIPOS_AFASTAMENTO = [
-  "F", "LP", "LT", "DS", "FMO", "PA", "D", "C", "LTS", "CFS", "CAS", "EAP", "TAF", "ME", "AG"
+  "F", "LP", "LT", "DS", "FMO", "PA", "D", "C", "LTS", "CFS", "CAS", "EAP", "TAF", "ME", "AG", "FER", "PF"
 ] as const;
 
 export type TipoAfastamento = typeof TIPOS_AFASTAMENTO[number];
