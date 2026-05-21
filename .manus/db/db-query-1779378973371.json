@@ -1,0 +1,9 @@
+{
+  "query": "UPDATE bombeiro_prontidao_historico SET dataInicio = '2026-02-18', dataFim = NULL WHERE bombeiroId = 30005 AND id = 1;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2pbRGdBvu4fe5ZT.root --database 2PAb8cXTT89NbT9HS42VfF --execute UPDATE bombeiro_prontidao_historico SET dataInicio = '2026-02-18', dataFim = NULL WHERE bombeiroId = 30005 AND id = 1;",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 268
+}

@@ -597,6 +597,25 @@ export async function calcularSaldoFMO(bombeiroId: number, quartelId: number) {
         }
       }
     }
+    // Salvaguarda: se não há registro em aberto (dataFim=null) no histórico,
+    // usar bombeiro.dataInicio e bombeiro.equipe como fallback a partir do último dataFim
+    const temRegistroAberto = historico.some(v => !v.dataFim);
+    if (!temRegistroAberto && (bombeiro.equipe as string) !== "Administrativo") {
+      const ultimoFim = historico.reduce((max, v) => {
+        if (!v.dataFim) return max;
+        const d = parseDateLocal(v.dataFim as any);
+        return d > max ? d : max;
+      }, new Date(0));
+      const inicioFallback = new Date(ultimoFim);
+      inicioFallback.setDate(inicioFallback.getDate() + 1);
+      for (let d = new Date(inicioFallback); d <= hoje; d.setDate(d.getDate() + 1)) {
+        const chaveD = dateToYMD(d);
+        if (diasCedidos.has(chaveD)) continue;
+        if (getProntidaoDoDiaServer(d) === bombeiro.equipe) {
+          diasDeServico.push({ data: new Date(d), equipe: bombeiro.equipe });
+        }
+      }
+    }
   } else {
     const inicio = parseDateLocal(bombeiro.dataInicio as any);
     for (let d = new Date(inicio); d <= hoje; d.setDate(d.getDate() + 1)) {
