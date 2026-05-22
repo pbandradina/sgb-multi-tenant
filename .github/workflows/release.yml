@@ -11,6 +11,10 @@ permissions:
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
+    
+    # Injeta a variavel global para forcar o ambiente a rodar as acoes no Node 24 de forma segura
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
       # 1. Faz o download do codigo fonte para a maquina virtual do GitHub
@@ -21,11 +25,11 @@ jobs:
       - name: Instalar o PNPM
         uses: pnpm/action-setup@v4
 
-      # 3. Configura o ambiente Node.js na maquina virtual
+      # 3. Configura o ambiente Node.js na versao estável 22 para a maquina virtual
       - name: Configurar o Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: 'pnpm'
 
       # 4. Instala todas as dependencias mapeadas no seu package.json
