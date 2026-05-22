@@ -1,0 +1,57 @@
+name: Publicar Atualizacao Automatica SGB
+
+on:
+  push:
+    tags:
+      - 'v*' # Esse script roda sempre que voce criar uma tag que comece com 'v' (Ex: v1.0.1)
+
+permissions:
+  contents: write # Permissao necessaria para o script anexar o arquivo zip na Release
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Faz o download do codigo fonte para a maquina virtual do GitHub
+      - name: Clonar o repositorio
+        uses: actions/checkout@v4
+
+      # 2. Instala o gerenciador de pacotes PNPM na versao correta do seu projeto
+      - name: Instalar o PNPM
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.4.1
+
+      # 3. Configura o ambiente Node.js na maquina virtual
+      - name: Configurar o Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      # 4. Instala todas as dependencias mapeadas no seu package.json
+      - name: Instalar dependencias do projeto
+        run: pnpm install --frozen-lockfile
+
+      # 5. Executa o script de build que o Manus criou (Compila o Vite e o Esbuild)
+      - name: Compilar Frontend e Backend (Build)
+        run: pnpm build
+
+      # 6. Compacta a pasta 'dist' recem-gerada em um arquivo chamado 'dist.zip'
+      - name: Compactar pasta de distribuicao dist
+        run: zip -r dist.zip dist/
+
+      # 7. Cria a Release publica no GitHub e anexa o arquivo dist.zip automaticamente
+      - name: Criar GitHub Release e fazer upload do build
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist.zip
+          name: Versao ${{ github.ref_name }}
+          body: |
+            Atualizacao automatica do Sistema de Gestao de Bombeiros (SGB Multi-Tenant).
+            Esta release contem as ultimas modificacoes estruturais e correcoes de bugs compiladas.
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
