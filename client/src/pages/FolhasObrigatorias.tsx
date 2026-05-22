@@ -178,6 +178,14 @@ export default function FolhasObrigatorias() {
               const previsao: string | null = item.saldo?.previsaoConclusaoCiclo ?? null;
               const equipe: string = item.bombeiro?.equipe ?? "Administrativo";
               const ec = EQUIPE_COLORS[equipe] ?? EQUIPE_COLORS["Administrativo"];
+              const periodosConcessao: Array<{ numero: number; dataInicio: string; dataFim: string; label: string }> =
+                item.saldo?.periodosConcessao ?? [];
+              // Período da FMO disponível: última FMO conquistada que ainda não foi usada
+              // fmoUsadas conta quantas foram usadas (em ordem de conquista), então a próxima disponível
+              // é o período de índice `usadas` (0-based)
+              const periodoDisponivel = saldo > 0 && periodosConcessao.length > usadas
+                ? periodosConcessao[usadas]
+                : null;
 
               return (
                 <Card
@@ -226,12 +234,19 @@ export default function FolhasObrigatorias() {
                       </div>
 
                       {/* Disponível */}
-                      <div className="flex items-center justify-between rounded-md px-2.5 py-1.5 bg-blue-500/8 border border-blue-500/15">
-                        <div className="flex items-center gap-1.5">
-                          <BarChart3 className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
-                          <span className="text-xs text-blue-300/80">Disponível</span>
+                      <div className="rounded-md px-2.5 py-1.5 bg-blue-500/8 border border-blue-500/15">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5">
+                            <BarChart3 className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
+                            <span className="text-xs text-blue-300/80">Disponível</span>
+                          </div>
+                          <span className="text-sm font-bold text-blue-400">{Math.max(0, saldo)}</span>
                         </div>
-                        <span className="text-sm font-bold text-blue-400">{Math.max(0, saldo)}</span>
+                        {periodoDisponivel && (
+                          <p className="text-[10px] text-blue-300/60 mt-0.5 text-right">
+                            ({periodoDisponivel.dataInicio} a {periodoDisponivel.dataFim})
+                          </p>
+                        )}
                       </div>
                     </div>
 

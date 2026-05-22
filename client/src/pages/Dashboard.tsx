@@ -140,10 +140,12 @@ export default function Dashboard() {
   const bombeirosDaEquipeHoje = (bombeiros || []).filter(b => b.equipe === prontidaoHoje);
 
   // IDs dos bombeiros que entram por troca hoje (de outra equipe)
+  // Usar split para evitar interpretação UTC do new Date(string)
   const trocasDeHoje = (trocasHoje || []).filter(t => {
-    const d = t.dataTroca ? new Date(t.dataTroca) : null;
-    if (!d) return false;
-    const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    if (!t.dataTroca) return false;
+    const raw = String(t.dataTroca);
+    // Normalizar para YYYY-MM-DD independente de ser ISO ou date string
+    const ds = raw.includes('T') ? raw.split('T')[0] : raw.substring(0, 10);
     return ds === hojeStr;
   });
   // IDs que saem por troca hoje (não contam como presentes)
