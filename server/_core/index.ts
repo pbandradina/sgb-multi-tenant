@@ -14,7 +14,7 @@ import { sdk } from "./sdk";
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
     const server = net.createServer();
-    server.listen(port, () => {
+    server.listen(port, "0.0.0.0", () => {
       server.close(() => resolve(true));
     });
     server.on("error", () => resolve(false));
@@ -33,9 +33,11 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 async function startServer() {
   const app = express();
   const server = createServer(app);
-  // Configure body parser with larger size limit for file uploads
+  
+  // Configuração de limites para upload/processamento de dados
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
+  
   registerStorageProxy(app);
   registerOAuthRoutes(app);
 
@@ -49,12 +51,15 @@ async function startServer() {
       const quartelId = parseInt(req.query.quartelId as string);
       const ano = parseInt(req.query.ano as string);
       const mes = parseInt(req.query.mes as string); // 0-indexed
+      
       if (isNaN(quartelId) || isNaN(ano) || isNaN(mes)) {
         res.status(400).json({ error: "Parâmetros inválidos" }); return;
       }
+      
       const MESES_NOME = ["JANEIRO","FEVEREIRO","MARCO","ABRIL","MAIO","JUNHO","JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"];
       const buffer = await gerarPlanilhaFrequencia(quartelId, ano, mes);
       const filename = `CONTROLE_FREQUENCIA_${MESES_NOME[mes]}_${ano}.xlsx`;
+      
       res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
       res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
       res.send(buffer);
@@ -63,7 +68,8 @@ async function startServer() {
       res.status(500).json({ error: "Erro ao gerar planilha" });
     }
   });
-  // tRPC API
+
+  // Middleware do tRPC
   app.use(
     "/api/trpc",
     createExpressMiddleware({
@@ -71,23 +77,23 @@ async function startServer() {
       createContext,
     })
   );
-  // development mode uses Vite, production mode uses static files
+
+  // Modo desenvolvimento usa Vite, produção usa arquivos estáticos (dist/client)
   if (process.env.NODE_ENV === "development") {
     await setupVite(app, server);
   } else {
     serveStatic(app);
   }
 
-  const preferredPort = parseInt(process.env.PORT || "3000");
-  const port = await findAvailablePort(preferredPort);
+  const port = await findAvailablePort(parseInt(process.env.PORT || "3000"));
 
-  if (port !== preferredPort) {
-    console.log(`Port ${preferredPort} is busy, using port ${port} instead`);
-  }
-
-  server.listen(port, () => {
-    console.log(`Server running on http://localhost:${port}/`);
+  server.listen(port, "0.0.0.0", () => {
+    const networkIP = "10.41.237.41";
+    console.log(`\n🚀 Sistema SGB Online!`);
+    console.log(`Acesso Local: http://localhost:${port}/`);
+    console.log(`Acesso na Rede: http://${networkIP}:${port}/\n`);
   });
 }
 
+// Inicializa o servidor e captura erros fatais
 startServer().catch(console.error);
