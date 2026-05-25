@@ -1,6 +1,19 @@
-import { describe, expect, it } from "vitest";
+import { describe, it, expect, vi } from 'vitest';
 import { appRouter } from "./routers";
 import type { TrpcContext } from "./_core/context";
+
+/**
+ * Utilitário para gerar um mock de Resposta que satisfaz o TypeScript Estrito.
+ * O 'as unknown as' é necessário para simular um objeto complexo do Express.
+ */
+function createMockRes() {
+  return {
+    clearCookie: vi.fn(),
+    status: vi.fn().mockReturnThis(),
+    json: vi.fn().mockReturnThis(),
+    send: vi.fn().mockReturnThis(),
+  } as unknown as TrpcContext["res"];
+}
 
 type AuthenticatedUser = NonNullable<TrpcContext["user"]>;
 
@@ -17,18 +30,13 @@ function createAdminContext(): { ctx: TrpcContext } {
     lastSignedIn: new Date(),
   };
 
-  const ctx: TrpcContext = {
-    user,
-    req: {
-      protocol: "https",
-      headers: {},
-    } as TrpcContext["req"],
-    res: {
-      clearCookie: () => {},
-    } as TrpcContext["res"],
+  return {
+    ctx: {
+      user,
+      req: { protocol: "https", headers: {} } as TrpcContext["req"],
+      res: createMockRes(),
+    }
   };
-
-  return { ctx };
 }
 
 function createUserContext(id = 2): { ctx: TrpcContext } {
@@ -44,33 +52,23 @@ function createUserContext(id = 2): { ctx: TrpcContext } {
     lastSignedIn: new Date(),
   };
 
-  const ctx: TrpcContext = {
-    user,
-    req: {
-      protocol: "https",
-      headers: {},
-    } as TrpcContext["req"],
-    res: {
-      clearCookie: () => {},
-    } as TrpcContext["res"],
+  return {
+    ctx: {
+      user,
+      req: { protocol: "https", headers: {} } as TrpcContext["req"],
+      res: createMockRes(),
+    }
   };
-
-  return { ctx };
 }
 
 describe("auth.logout", () => {
   it("clears the session cookie and reports success", async () => {
-    const clearedCookies: { name: string; options: Record<string, unknown> }[] = [];
     const { ctx } = createAdminContext();
-    ctx.res.clearCookie = (name: string, options: Record<string, unknown>) => {
-      clearedCookies.push({ name, options });
-    };
-
     const caller = appRouter.createCaller(ctx);
     const result = await caller.auth.logout();
 
     expect(result).toEqual({ success: true });
-    expect(clearedCookies).toHaveLength(1);
+    expect(ctx.res.clearCookie).toHaveBeenCalled();
   });
 });
 
@@ -87,7 +85,7 @@ describe("auth.me", () => {
     const ctx: TrpcContext = {
       user: null,
       req: { protocol: "https", headers: {} } as TrpcContext["req"],
-      res: { clearCookie: () => {} } as TrpcContext["res"],
+      res: createMockRes(),
     };
     const caller = appRouter.createCaller(ctx);
     const me = await caller.auth.me();
@@ -117,7 +115,7 @@ describe("bombeiro router - access control", () => {
     const ctx: TrpcContext = {
       user: null,
       req: { protocol: "https", headers: {} } as TrpcContext["req"],
-      res: { clearCookie: () => {} } as TrpcContext["res"],
+      res: createMockRes(),
     };
     const caller = appRouter.createCaller(ctx);
     await expect(caller.bombeiro.list({ quartelId: 1 })).rejects.toThrow();
@@ -129,9 +127,11 @@ describe("afastamento router - access control", () => {
     const ctx: TrpcContext = {
       user: null,
       req: { protocol: "https", headers: {} } as TrpcContext["req"],
-      res: { clearCookie: () => {} } as TrpcContext["res"],
+      res: createMockRes(),
     };
     const caller = appRouter.createCaller(ctx);
-    await expect(caller.afastamento.list({ quartelId: 1 })).rejects.toThrow();
+    
+    // Conforme logs anteriores, seu backend utiliza listByQuartel
+    await expect(caller.afastamento.listByQuartel({ quartelId: 1 })).rejects.toThrow();
   });
 });

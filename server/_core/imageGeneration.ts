@@ -1,24 +1,8 @@
-import { storagePut } from "../storage"; // Ajustado de 'server/storage' para caminho relativo
+import { storagePut } from "../storage";
 import { ENV } from "./env";
 
-export type GenerateImageOptions = {
-  prompt: string;
-  originalImages?: Array<{
-    url?: string;
-    b64Json?: string;
-    mimeType?: string;
-  }>;
-};
-
-export type GenerateImageResponse = {
-  url?: string;
-};
-
-export async function generateImage(
-  options: GenerateImageOptions
-): Promise<GenerateImageResponse> {
-  if (!ENV.forgeApiUrl) throw new Error("BUILT_IN_FORGE_API_URL is not configured");
-  if (!ENV.forgeApiKey) throw new Error("BUILT_IN_FORGE_API_KEY is not configured");
+export async function generateImage(options: { prompt: string; originalImages?: any[] }) {
+  if (!ENV.forgeApiUrl || !ENV.forgeApiKey) throw new Error("Configuracao de API de imagem ausente");
 
   const baseUrl = ENV.forgeApiUrl.endsWith("/") ? ENV.forgeApiUrl : `${ENV.forgeApiUrl}/`;
   const fullUrl = new URL("images.v1.ImageService/GenerateImage", baseUrl).toString();
@@ -26,10 +10,8 @@ export async function generateImage(
   const response = await fetch(fullUrl, {
     method: "POST",
     headers: {
-      accept: "application/json",
       "content-type": "application/json",
-      "connect-protocol-version": "1",
-      authorization: `Bearer ${ENV.forgeApiKey}`,
+      "authorization": `Bearer ${ENV.forgeApiKey}`,
     },
     body: JSON.stringify({
       prompt: options.prompt,
@@ -37,10 +19,11 @@ export async function generateImage(
     }),
   });
 
-  if (!response.ok) throw new Error(`Image generation failed: ${response.statusText}`);
+  if (!response.ok) throw new Error(`Falha na geracao: ${response.statusText}`);
 
-  const result = (await response.json()) as { image: { b64Json: string; mimeType: string } };
-  const buffer = Buffer.from(result.image.b64Json, "base64");
+  const result = await response.json();
+  // Usamos globalThis.Buffer para garantir que o TS encontre a definicao do Node
+  const buffer = globalThis.Buffer.from(result.image.b64Json, "base64");
 
   const { url } = await storagePut(`generated/${Date.now()}.png`, buffer, result.image.mimeType);
   return { url };

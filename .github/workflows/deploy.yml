@@ -7,20 +7,22 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
       - name: Checkout Código
         uses: actions/checkout@v4
 
       - name: Setup Node.js
-        # CORREÇÃO: O nome oficial da action é setup-node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           cache: 'npm'
 
       - name: Instalar Dependências
-        run: npm ci
+        # CORREÇÃO: Adicionamos a flag --legacy-peer-deps aqui também
+        run: npm install --legacy-peer-deps
 
       - name: Validar TypeScript (Type Check)
         run: |
@@ -29,5 +31,4 @@ jobs:
       - name: Build do Projeto
         run: npm run build
         env:
-          # O aviso no VS Code persistirá, mas o GitHub aceita esta sintaxe perfeitamente
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
