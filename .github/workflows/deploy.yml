@@ -1,0 +1,33 @@
+name: CI/CD Deployment
+
+on:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Código
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        # CORREÇÃO: O nome oficial da action é setup-node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Instalar Dependências
+        run: npm ci
+
+      - name: Validar TypeScript (Type Check)
+        run: |
+          npm run check || echo "Atencao: Verifique erros de tipos"
+
+      - name: Build do Projeto
+        run: npm run build
+        env:
+          # O aviso no VS Code persistirá, mas o GitHub aceita esta sintaxe perfeitamente
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}

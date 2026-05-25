@@ -1,34 +1,36 @@
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-export type Equipe = "Prontidão Verde" | "Prontidão Azul" | "Prontidão Amarela" | "Administrativo";
-
-export const EQUIPES: Equipe[] = ["Prontidão Verde", "Prontidão Azul", "Prontidão Amarela", "Administrativo"];
-export const EQUIPES_PRONTIDAO: Equipe[] = ["Prontidão Verde", "Prontidão Azul", "Prontidão Amarela"];
-
-const equipeConfig: Record<Equipe, { label: string; shortLabel: string; className: string; color: string }> = {
-  "Prontidão Verde":   { label: "Prontidão Verde",   shortLabel: "Verde",      className: "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40", color: "#10b981" },
-  "Prontidão Azul":   { label: "Prontidão Azul",    shortLabel: "Azul",       className: "bg-blue-500/20 text-blue-400 border border-blue-500/40",           color: "#3b82f6" },
-  "Prontidão Amarela":{ label: "Prontidão Amarela",  shortLabel: "Amarela",    className: "bg-amber-500/20 text-amber-400 border border-amber-500/40",        color: "#f59e0b" },
-  "Administrativo":   { label: "Administrativo",     shortLabel: "Admin",      className: "bg-slate-500/20 text-slate-400 border border-slate-500/40",        color: "#94a3b8" },
-};
+export const EQUIPES = ['Prontidão Verde', 'Prontidão Amarela', 'Prontidão Azul'] as const;
+export const EQUIPES_PRONTIDAO = EQUIPES; // Alias para FolhasObrigatorias.tsx
+export type Equipe = typeof EQUIPES[number] | "Administrativo";
 
 interface TeamBadgeProps {
-  equipe: Equipe;
+  equipe: string;
   className?: string;
-  size?: "sm" | "md" | "lg";
-  short?: boolean;
+  size?: "sm" | "md";
 }
 
-export function TeamBadge({ equipe, className, size = "md", short = false }: TeamBadgeProps) {
-  const config = equipeConfig[equipe] ?? equipeConfig["Administrativo"];
-  const sizeClass = size === "sm" ? "text-xs px-1.5 py-0.5" : size === "lg" ? "text-sm px-3 py-1.5" : "text-xs px-2 py-1";
+export function TeamBadge({ equipe, className, size = "md" }: TeamBadgeProps) {
+  const getStyles = (nome: string) => {
+    const n = (nome || "").toLowerCase();
+    if (n.includes("verde")) return "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-400 dark:border-emerald-800";
+    if (n.includes("amarela")) return "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/40 dark:text-amber-400 dark:border-amber-800";
+    if (n.includes("azul")) return "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/40 dark:text-blue-400 dark:border-blue-800";
+    return "bg-slate-100 text-slate-700 border-slate-200";
+  };
+
   return (
-    <span className={cn("inline-flex items-center rounded font-semibold tracking-wide", config.className, sizeClass, className)}>
-      {short ? config.shortLabel : config.label}
-    </span>
+    <Badge 
+      variant="outline"
+      className={cn(
+        "font-bold uppercase tracking-wider border rounded-full transition-colors shadow-none",
+        size === "sm" ? "text-[9px] px-2 py-0" : "text-[10px] px-2.5 py-0.5",
+        getStyles(equipe),
+        className
+      )}
+    >
+      {equipe}
+    </Badge>
   );
-}
-
-export function getEquipeColor(equipe: Equipe): string {
-  return equipeConfig[equipe]?.color ?? "#94a3b8";
 }
