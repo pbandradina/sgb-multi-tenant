@@ -1,0 +1,38 @@
+{
+  "query": "SELECT b.nome, b.nomeGuerra, a.tipo, a.dataInicio, a.dataFim FROM afastamentos a JOIN bombeiros b ON a.bombeiroId = b.id WHERE b.nomeGuerra = 'Bortoleto' OR b.nome LIKE '%Bortoleto%' ORDER BY a.dataInicio;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2pbRGdBvu4fe5ZT.root --database 2PAb8cXTT89NbT9HS42VfF --execute SELECT b.nome, b.nomeGuerra, a.tipo, a.dataInicio, a.dataFim FROM afastamentos a JOIN bombeiros b ON a.bombeiroId = b.id WHERE b.nomeGuerra = 'Bortoleto' OR b.nome LIKE '%Bortoleto%' ORDER BY a.dataInicio;",
+  "rows": [
+    {
+      "nome": "Clayton Júnior Rodrigues Bortoleto",
+      "nomeGuerra": "Bortoleto",
+      "tipo": "FMO",
+      "dataInicio": "2026-03-07",
+      "dataFim": "2026-03-07"
+    },
+    {
+      "nome": "Clayton Júnior Rodrigues Bortoleto",
+      "nomeGuerra": "Bortoleto",
+      "tipo": "EAP",
+      "dataInicio": "2026-03-31",
+      "dataFim": "2026-03-31"
+    },
+    {
+      "nome": "Clayton Júnior Rodrigues Bortoleto",
+      "nomeGuerra": "Bortoleto",
+      "tipo": "FMO",
+      "dataInicio": "2026-04-21",
+      "dataFim": "2026-04-21"
+    },
+    {
+      "nome": "Clayton Júnior Rodrigues Bortoleto",
+      "nomeGuerra": "Bortoleto",
+      "tipo": "FMO",
+      "dataInicio": "2026-05-03",
+      "dataFim": "2026-05-03"
+    }
+  ],
+  "messages": [],
+  "stdout": "nome\tnomeGuerra\ttipo\tdataInicio\tdataFim\nClayton Júnior Rodrigues Bortoleto\tBortoleto\tFMO\t2026-03-07\t2026-03-07\nClayton Júnior Rodrigues Bortoleto\tBortoleto\tEAP\t2026-03-31\t2026-03-31\nClayton Júnior Rodrigues Bortoleto\tBortoleto\tFMO\t2026-04-21\t2026-04-21\nClayton Júnior Rodrigues Bortoleto\tBortoleto\tFMO\t2026-05-03\t2026-05-03\n",
+  "stderr": "",
+  "execution_time_ms": 286
+}

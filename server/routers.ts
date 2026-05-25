@@ -10,6 +10,7 @@ import { afastamentoRouter, foRouter } from "./routers/afastamento";
 import { adminRouter } from "./routers/admin";
 import { historicoRouter } from "./routers/historico";
 import { trocaRouter } from "./routers/troca";
+import { updateRouter } from "./routers/update";
 
 export const appRouter = router({
   system: systemRouter,
@@ -30,6 +31,7 @@ export const appRouter = router({
   admin: adminRouter,
   historico: historicoRouter,
   troca: trocaRouter,
+  update: updateRouter,
 });
 
 export type AppRouter = typeof appRouter;

@@ -443,9 +443,9 @@ export async function getEquipeBombeiroNaData(bombeiroId: number, quartelId: num
 // Bombeiros da equipe Administrativo não entram no cálculo.
 
 // Siglas que interrompem a sequência de serviços consecutivos
-const INTERRUPT_SIGLAS = new Set(['F', 'LP', 'DS', 'LT', 'D', 'LTS', 'C', 'CFS', 'CAS', 'EAP', 'TAF']);
+const INTERRUPT_SIGLAS = new Set(['F', 'LP', 'DS', 'LT', 'D', 'LTS', 'C', 'CFS', 'CAS', 'TAF']);
 // Siglas que NÃO contam como serviço mas também NÃO interrompem o ciclo (pausa)
-const PAUSE_SIGLAS = new Set(['PA', 'FMO', 'FO', 'AG', 'ME', 'EX', 'VD', 'AM', 'AZ']);
+const PAUSE_SIGLAS = new Set(['PA', 'FMO', 'FO', 'AG', 'ME', 'EX', 'VD', 'AM', 'AZ', 'EAP']);
 
 // Ciclo contínuo: referência 01/Jan/2026 = Verde (idx=0)
 // Verde → Amarela → Azul → Verde → ... (1 dia cada, sem reiniciar no ano)
