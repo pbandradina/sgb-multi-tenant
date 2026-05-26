@@ -76,18 +76,18 @@ export default function SelectQuartel() {
               return (
                 <button
                   key={quartel.id}
-                  onClick={() => handleSelectQuartel(quartel.id, quartel.nome, quartel.sigla)}
+                  onClick={() => handleSelectQuartel(quartel.id, quartel.nome, quartel.sigla ?? "")}
                   className="w-full flex items-center gap-4 bg-card border border-border rounded-xl p-4 hover:border-primary/40 hover:bg-card/80 transition-all group"
                 >
                   <div className="w-12 h-12 rounded-xl bg-primary/15 border border-primary/20 flex items-center justify-center flex-shrink-0">
-                    <span className="text-sm font-bold text-primary">{quartel.sigla.slice(0, 3)}</span>
+                    <span className="text-sm font-bold text-primary">{(quartel.sigla ?? "N/A").slice(0, 3)}</span>
                   </div>
                   <div className="flex-1 text-left">
                     <p className="font-semibold text-foreground" style={{ fontFamily: "Montserrat, sans-serif" }}>
                       {quartel.nome}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {quartel.cidade && quartel.estado ? `${quartel.cidade} - ${quartel.estado}` : quartel.sigla}
+                      {quartel.cidade && quartel.estado ? `${quartel.cidade} - ${quartel.estado}` : (quartel.sigla ?? "N/A")}
                       {" · "}
                       <span className="capitalize">{role === "admin" ? "Administrador" : "Operador"}</span>
                     </p>

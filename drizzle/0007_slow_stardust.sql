@@ -1,1 +1,0 @@
-ALTER TABLE `bombeiros` ADD `nomeGuerra` varchar(100);

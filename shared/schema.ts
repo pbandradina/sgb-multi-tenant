@@ -76,6 +76,28 @@ export const trocasServico = pgTable("trocas_servico", {
   observacao: text("observacao"),
 });
 
+// --- PRONTIDÃO ---
+export const prontidoes = pgTable("prontidoes", {
+  id: serial("id").primaryKey(),
+  quartelId: integer("quartel_id").references(() => quarteis.id),
+  bombeiroId: integer("bombeiro_id").references(() => bombeiros.id),
+  data: text("data").notNull(),
+  equipe: text("equipe").notNull(), // "Prontidão Verde", "Prontidão Azul", "Prontidão Amarela"
+  ativo: boolean("ativo").default(true),
+});
+
+// --- HISTÓRICO ---
+export const historicos = pgTable("historicos", {
+  id: serial("id").primaryKey(),
+  quartelId: integer("quartel_id").references(() => quarteis.id),
+  bombeiroId: integer("bombeiro_id").references(() => bombeiros.id),
+  tipo: text("tipo").notNull(),
+  data: timestamp("data").defaultNow(),
+  descricao: text("descricao"),
+});
+
+// Type exports
+export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 export type InsertQuartel = typeof quarteis.$inferInsert;
 export type InsertBombeiro = typeof bombeiros.$inferInsert;

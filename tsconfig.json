@@ -19,5 +19,11 @@
       "@shared/*": ["./shared/*"]
     }
   },
-  "include": ["client/src/**/*", "shared/**/*", "server/**/*", "vite.config.ts"]
+  "include": [
+    "client/src/**/*", 
+    "shared/**/*", 
+    "server/**/*", 
+    "vite.config.ts", 
+    "drizzle.config.ts"
+  ]
 }

@@ -1,15 +1,14 @@
 import { defineConfig } from "drizzle-kit";
+import * as dotenv from "dotenv";
 
-const connectionString = process.env.DATABASE_URL;
-if (!connectionString) {
-  throw new Error("DATABASE_URL is required to run drizzle commands");
-}
+// Carrega as variáveis do arquivo .env para o process.env
+dotenv.config();
 
 export default defineConfig({
-  schema: "./drizzle/schema.ts",
+  schema: "./shared/schema.ts", // ajuste para o caminho real do seu schema
   out: "./drizzle",
-  dialect: "mysql",
+  dialect: "postgresql", // ou 'mysql' / 'sqlite' dependendo do seu projeto
   dbCredentials: {
-    url: connectionString,
+    url: process.env.DATABASE_URL!,
   },
 });

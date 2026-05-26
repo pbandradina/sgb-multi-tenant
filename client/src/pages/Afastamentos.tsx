@@ -147,7 +147,7 @@ export default function Afastamentos() {
     return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="w-8 h-8 text-primary animate-spin" /></div>;
   }
 
-  const periodosDisponiveis = saldoBombeiro?.periodosConcessao ?? [];
+  const periodosDisponiveis = (saldoBombeiro as any)?.periodosConcessao ?? [];
 
   return (
     <AppLayout title="Afastamentos">

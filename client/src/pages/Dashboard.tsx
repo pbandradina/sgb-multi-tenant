@@ -178,8 +178,8 @@ export default function Dashboard() {
 
   const presentesHoje = [...presentesBase, ...trocaEntraHoje].sort(sortBombeiros);
   const efetivoPresenteHoje = presentesHoje.length;
-  const comFONegativo = saldosFO?.filter(s => s.saldo.saldoFMO < 0) || [];
-  const comFOAlto = saldosFO?.filter(s => s.saldo.saldoFMO >= 3) || [];
+  const comFONegativo = Array.isArray(saldosFO) ? saldosFO.filter((s: any) => s.saldo?.saldoFMO < 0) : [];
+  const comFOAlto = Array.isArray(saldosFO) ? saldosFO.filter((s: any) => s.saldo?.saldoFMO >= 3) : [];
 
   const mesesNomes = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
   const labelDataFormatada = `${String(dataNavegacao.getDate()).padStart(2, '0')} de ${mesesNomes[dataNavegacao.getMonth()]}`;

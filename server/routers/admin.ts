@@ -2,7 +2,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { protectedProcedure, router } from "../_core/trpc";
 import { getDb } from "../db";
-import { users } from "../../drizzle/schema";
+import { users } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
 export const adminRouter = router({

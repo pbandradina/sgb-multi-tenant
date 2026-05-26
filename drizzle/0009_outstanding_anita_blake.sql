@@ -1,1 +1,0 @@
-ALTER TABLE `afastamentos` MODIFY COLUMN `tipo` enum('F','LP','LT','DS','FMO','PA','D','C','LTS','CFS','CAS','EAP','TAF','ME','AG','FER','PF') NOT NULL;
