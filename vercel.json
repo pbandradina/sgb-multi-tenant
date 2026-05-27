@@ -1,5 +1,6 @@
 {
   "version": 2,
+
   "builds": [
     {
       "src": "server/_core/index.ts",
@@ -8,21 +9,27 @@
     {
       "src": "package.json",
       "use": "@vercel/static-build",
-      "config": { "distDir": "dist/client" }
+      "config": {
+        "distDir": "dist/client"
+      }
     }
   ],
+
   "routes": [
+    {
+      "src": "/assets/(.*)",
+      "dest": "/dist/client/assets/$1"
+    },
     {
       "src": "/api/(.*)",
       "dest": "server/_core/index.ts"
     },
     {
-      "src": "/assets/(.*)",
-      "dest": "/assets/$1"
+      "handle": "filesystem"
     },
     {
       "src": "/(.*)",
-      "dest": "/index.html"
+      "dest": "/dist/client/index.html"
     }
   ]
 }
