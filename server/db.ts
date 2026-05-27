@@ -1,6 +1,6 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import * as schema from "@shared/schema"; // Usando o alias configurado no tsconfig
+import * as schema from "@shared/schema";
 import { eq, and, or } from "drizzle-orm";
 import * as dotenv from "dotenv";
 
@@ -10,7 +10,12 @@ if (!process.env.DATABASE_URL) {
   throw new Error("DATABASE_URL não encontrada no arquivo .env");
 }
 
-const client = postgres(process.env.DATABASE_URL);
+// IMPORTANTE:
+// prepare: false é obrigatório para Supabase Pooler + Vercel
+const client = postgres(process.env.DATABASE_URL!, {
+  prepare: false,
+});
+
 export const db = drizzle(client, { schema });
 
 // --- UTILITY FUNCTIONS ---
