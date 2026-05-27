@@ -41,7 +41,7 @@ export const getLoginUrl = () => {
     : oauthPortalUrl;
 
   try {
-    const url = new URL(`${normalizedUrl}/authorize`);
+    const url = new URL(`${normalizedUrl}/auth/v1/authorize`);
     url.searchParams.set("appId", appId);
     url.searchParams.set("redirectUri", redirectUri);
     url.searchParams.set("state", state);
