@@ -6,7 +6,6 @@ export const getLoginUrl = () => {
   const oauthPortalUrl =
     import.meta.env.VITE_OAUTH_PORTAL_URL ??
     import.meta.env.VITE_OAUTH_SERVER_URL ??
-    import.meta.env.OAUTH_SERVER_URL ??
     "";
   const appId =
     import.meta.env.VITE_APP_ID ?? import.meta.env.APP_ID ?? "";
@@ -19,7 +18,14 @@ export const getLoginUrl = () => {
 
   if (!oauthPortalUrl) {
     console.error(
-      "[Auth] Missing OAuth portal URL. Set VITE_OAUTH_PORTAL_URL, VITE_OAUTH_SERVER_URL, or OAUTH_SERVER_URL in your environment."
+      "[Auth] Missing OAuth portal URL. Set VITE_OAUTH_PORTAL_URL or VITE_OAUTH_SERVER_URL in your environment."
+    );
+    return "/";
+  }
+
+  if (oauthPortalUrl.includes("/rest/v1") || oauthPortalUrl.includes("/auth/v1")) {
+    console.error(
+      "[Auth] Invalid OAuth portal URL. Do not use Supabase REST/auth paths. Use the OAuth portal host instead."
     );
     return "/";
   }

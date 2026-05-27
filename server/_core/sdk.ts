@@ -78,11 +78,20 @@ class OAuthService {
   }
 }
 
-const createOAuthHttpClient = (): AxiosInstance =>
-  axios.create({
+const createOAuthHttpClient = (): AxiosInstance => {
+  const headers: Record<string, string> = {};
+
+  if (ENV.supabaseAnonKey) {
+    headers.apikey = ENV.supabaseAnonKey;
+    headers.Authorization = `Bearer ${ENV.supabaseAnonKey}`;
+  }
+
+  return axios.create({
     baseURL: ENV.oAuthServerUrl,
     timeout: AXIOS_TIMEOUT_MS,
+    headers,
   });
+};
 
 class SDKServer {
   private readonly client: AxiosInstance;
