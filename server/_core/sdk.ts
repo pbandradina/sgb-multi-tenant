@@ -4,18 +4,20 @@ import axios, { type AxiosInstance } from "axios";
 import { parse as parseCookieHeader } from "cookie";
 import type { Request } from "express";
 import { SignJWT, jwtVerify } from "jose";
-import type { users } from "@shared/schema";
-import { InferSelectModel } from "drizzle-orm";
-type User = InferSelectModel<typeof users>;
-import * as db from "../db";
-import { ENV } from "./env";
+import type { InferSelectModel } from "drizzle-orm";
+import { users } from "../../drizzle/schema.js";
+import * as db from "../db.js";
+import { ENV } from "./env.js";
 import type {
   ExchangeTokenRequest,
   ExchangeTokenResponse,
   GetUserInfoResponse,
   GetUserInfoWithJwtRequest,
   GetUserInfoWithJwtResponse,
-} from "./types/manusTypes";
+} from "./types/manusTypes.js";
+
+type User = InferSelectModel<typeof users>;
+
 // Utility function
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.length > 0;
@@ -56,25 +58,41 @@ class OAuthService {
       redirectUri: this.decodeState(state),
     };
 
-    const { data } = await this.client.post<ExchangeTokenResponse>(
-      EXCHANGE_TOKEN_PATH,
-      payload
-    );
-
-    return data;
+    try {
+      const { data } = await this.client.post<ExchangeTokenResponse>(
+        EXCHANGE_TOKEN_PATH,
+        payload
+      );
+      return data;
+    } catch (error) {
+      console.error("[OAuth] getTokenByCode failed:", {
+        status: (error as any)?.response?.status,
+        statusText: (error as any)?.response?.statusText,
+        message: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
   }
 
   async getUserInfoByToken(
     token: ExchangeTokenResponse
   ): Promise<GetUserInfoResponse> {
-    const { data } = await this.client.post<GetUserInfoResponse>(
-      GET_USER_INFO_PATH,
-      {
-        accessToken: token.accessToken,
-      }
-    );
-
-    return data;
+    try {
+      const { data } = await this.client.post<GetUserInfoResponse>(
+        GET_USER_INFO_PATH,
+        {
+          accessToken: token.accessToken,
+        }
+      );
+      return data;
+    } catch (error) {
+      console.error("[OAuth] getUserInfoByToken failed:", {
+        status: (error as any)?.response?.status,
+        statusText: (error as any)?.response?.statusText,
+        message: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
   }
 }
 
@@ -86,11 +104,27 @@ const createOAuthHttpClient = (): AxiosInstance => {
     headers.Authorization = `Bearer ${ENV.supabaseAnonKey}`;
   }
 
-  return axios.create({
+  const client = axios.create({
     baseURL: ENV.oAuthServerUrl,
     timeout: AXIOS_TIMEOUT_MS,
     headers,
   });
+
+  client.interceptors.response.use(
+    response => response,
+    error => {
+      console.error("[OAuth] HTTP response error:", {
+        status: error?.response?.status,
+        statusText: error?.response?.statusText,
+        data: typeof error?.response?.data === "string"
+          ? error.response.data.slice(0, 200)
+          : error?.response?.data,
+      });
+      return Promise.reject(error);
+    }
+  );
+
+  return client;
 };
 
 class SDKServer {
@@ -251,20 +285,29 @@ class SDKServer {
       projectId: ENV.appId,
     };
 
-    const { data } = await this.client.post<GetUserInfoWithJwtResponse>(
-      GET_USER_INFO_WITH_JWT_PATH,
-      payload
-    );
+    try {
+      const { data } = await this.client.post<GetUserInfoWithJwtResponse>(
+        GET_USER_INFO_WITH_JWT_PATH,
+        payload
+      );
 
-    const loginMethod = this.deriveLoginMethod(
-      (data as any)?.platforms,
-      (data as any)?.platform ?? data.platform ?? null
-    );
-    return {
-      ...(data as any),
-      platform: loginMethod,
-      loginMethod,
-    } as GetUserInfoWithJwtResponse;
+      const loginMethod = this.deriveLoginMethod(
+        (data as any)?.platforms,
+        (data as any)?.platform ?? data.platform ?? null
+      );
+      return {
+        ...(data as any),
+        platform: loginMethod,
+        loginMethod,
+      } as GetUserInfoWithJwtResponse;
+    } catch (error) {
+      console.error("[OAuth] getUserInfoWithJwt failed:", {
+        status: (error as any)?.response?.status,
+        statusText: (error as any)?.response?.statusText,
+        message: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
   }
 
   async authenticateRequest(req: Request): Promise<User> {

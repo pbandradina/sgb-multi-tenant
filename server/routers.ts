@@ -1,16 +1,16 @@
 import { COOKIE_NAME } from "@shared/const";
-import { getSessionCookieOptions } from "./_core/cookies";
-import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, router } from "./_core/trpc";
-import { quartelRouter } from "./routers/quartel";
-import { bombeiroRouter } from "./routers/bombeiro";
-import { escalaRouter } from "./routers/escala";
-import { prontidaoRouter } from "./routers/prontidao";
-import { afastamentoRouter, foRouter } from "./routers/afastamento";
-import { adminRouter } from "./routers/admin";
-import { historicoRouter } from "./routers/historico";
-import { trocaRouter } from "./routers/troca";
-import { updateRouter } from "./routers/update";
+import { getSessionCookieOptions } from "./_core/cookies.js";
+import { systemRouter } from "./_core/systemRouter.js";
+import { publicProcedure, router } from "./_core/trpc.js";
+import { quartelRouter } from "./routers/quartel.js";
+import { bombeiroRouter } from "./routers/bombeiro.js";
+import { escalaRouter } from "./routers/escala.js";
+import { prontidaoRouter } from "./routers/prontidao.js";
+import { afastamentoRouter, foRouter } from "./routers/afastamento.js";
+import { adminRouter } from "./routers/admin.js";
+import { historicoRouter } from "./routers/historico.js";
+import { trocaRouter } from "./routers/troca.js";
+import { updateRouter } from "./routers/update.js";
 
 export const appRouter = router({
   system: systemRouter,

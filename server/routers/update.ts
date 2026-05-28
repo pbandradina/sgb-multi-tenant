@@ -1,4 +1,4 @@
-import { router, publicProcedure } from '../_core/trpc'; // Ajuste o caminho do seu arquivo trpc base se necessário
+import { router, publicProcedure } from '../_core/trpc.js'; // Ajuste o caminho do seu arquivo trpc base se necessário
 import { z } from 'zod';
 import axios from 'axios';
 import fs from 'fs';

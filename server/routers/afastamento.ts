@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { protectedProcedure, router } from "../_core/trpc";
+import { protectedProcedure, router } from "../_core/trpc.js";
 import {
   getAfastamentosByQuartel,
   getAfastamentosByBombeiro,
@@ -11,7 +11,7 @@ import {
   getUserQuartelRole,
   getBombeirosByQuartel,
   calcularSaldoFMO,
-} from "../db";
+} from "../db.js";
 
 // Siglas de afastamentos conforme sistema anterior
 // EX (Expediente) removido — é tipo de escala semanal, não afastamento

@@ -1,5 +1,5 @@
-import { storagePut } from "../storage";
-import { ENV } from "./env";
+import { storagePut } from "../storage.js";
+import { ENV } from "./env.js";
 
 export async function generateImage(options: { prompt: string; originalImages?: any[] }) {
   if (!ENV.forgeApiUrl || !ENV.forgeApiKey) throw new Error("Configuracao de API de imagem ausente");

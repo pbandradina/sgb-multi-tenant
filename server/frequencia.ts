@@ -34,8 +34,8 @@
  */
 
 import ExcelJS from "exceljs";
-import { getDb, parseDateLocal } from "./db";
-import { bombeiros, afastamentos, quarteis } from "@shared/schema";
+import { getDb, parseDateLocal } from "./db.js";
+import { bombeiros, afastamentos, quarteis, bombeiroProntidaoHistorico } from "../drizzle/schema.js";
 import { and, eq } from "drizzle-orm";
 
 const MESES_NOME = [

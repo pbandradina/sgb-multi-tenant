@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { appRouter } from "./routers";
-import type { TrpcContext } from "./_core/context";
+import { appRouter } from "./routers.js";
+import type { TrpcContext } from "./_core/context.js";
 
 /**
  * Utilitário para gerar um mock de Resposta que satisfaz o TypeScript Estrito.

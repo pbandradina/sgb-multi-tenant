@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { protectedProcedure, publicProcedure, router } from "../_core/trpc";
+import { protectedProcedure, publicProcedure, router } from "../_core/trpc.js";
 import {
   getAllQuarteis,
   getQuartelById,
@@ -12,7 +12,7 @@ import {
   getUsersByQuartelId,
   removeUserFromQuartel,
   getUserByOpenId,
-} from "../db";
+} from "../db.js";
 
 export const quartelRouter = router({
   // Listar todos os quarteis (admin global)

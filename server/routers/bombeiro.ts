@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { protectedProcedure, router } from "../_core/trpc";
+import { protectedProcedure, router } from "../_core/trpc.js";
 import {
   getBombeirosByQuartel,
   getBombeiroById,
@@ -8,7 +8,7 @@ import {
   updateBombeiro,
   deleteBombeiro,
   getUserQuartelRole,
-} from "../db";
+} from "../db.js";
 
 async function assertQuartelAccess(userId: number, quartelId: number) {
   const rel = await getUserQuartelRole(userId, quartelId);
