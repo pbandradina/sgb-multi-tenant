@@ -46,9 +46,10 @@ export const historicoRouter = router({
       await createHistorico({
         quartelId: input.quartelId,
         bombeiroId: input.bombeiroId,
+        tipo: input.equipe,
         equipe: input.equipe,
-        dataInicio: input.dataInicio as any,
-        dataFim: input.dataFim as any ?? null,
+        dataInicio: input.dataInicio,
+        dataFim: input.dataFim ?? null,
         observacao: input.observacao,
       });
       return { success: true };

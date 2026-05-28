@@ -37,10 +37,11 @@ export const escalaRouter = router({
     .mutation(async ({ ctx, input }) => {
       if (ctx.user.role !== "admin") await assertQuartelAccess(ctx.user.id, input.quartelId);
       await createEscala({
+        nome: input.equipe,
         quartelId: input.quartelId,
         equipe: input.equipe,
-        dataInicio: input.dataInicio as any,
-        dataFim: input.dataFim as any,
+        dataInicio: input.dataInicio,
+        dataFim: input.dataFim,
         observacao: input.observacao,
       });
       return { success: true };

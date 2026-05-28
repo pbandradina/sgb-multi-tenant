@@ -1,5 +1,6 @@
 import { and, eq, gte, lte, desc, sql, or } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/mysql2";
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
 import {
   InsertUser,
   users,
@@ -25,7 +26,8 @@ let _db: ReturnType<typeof drizzle> | null = null;
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
-      _db = drizzle(process.env.DATABASE_URL);
+      const client = postgres(process.env.DATABASE_URL, { max: 1 });
+      _db = drizzle(client);
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);
       _db = null;
@@ -68,7 +70,10 @@ export async function upsertUser(user: InsertUser): Promise<void> {
   if (!values.lastSignedIn) values.lastSignedIn = new Date();
   if (Object.keys(updateSet).length === 0) updateSet.lastSignedIn = new Date();
 
-  await db.insert(users).values(values).onDuplicateKeyUpdate({ set: updateSet });
+  await db
+    .insert(users)
+    .values(values)
+    .onConflictDoUpdate({ target: users.openId, set: updateSet });
 }
 
 export async function getUserByOpenId(openId: string) {
@@ -141,7 +146,7 @@ export async function addUserToQuartel(quartelId: number, userId: number, role: 
   await db
     .insert(quartelUsers)
     .values({ quartelId, userId, role })
-    .onDuplicateKeyUpdate({ set: { role } });
+    .onConflictDoUpdate({ target: [quartelUsers.userId, quartelUsers.quartelId], set: { role } });
 }
 
 export async function getUserQuartelRole(userId: number, quartelId: number) {
@@ -220,9 +225,9 @@ export async function getEscalasByQuartel(quartelId: number, dataInicio?: string
   const db = await getDb();
   if (!db) return [];
   const conditions: ReturnType<typeof eq>[] = [eq(escalas.quartelId, quartelId)];
-  if (dataInicio) conditions.push(sql`${escalas.dataInicio} >= ${dataInicio}` as any);
-  if (dataFim) conditions.push(sql`${escalas.dataFim} <= ${dataFim}` as any);
-  return db.select().from(escalas).where(and(...conditions)).orderBy(escalas.dataInicio);
+  if (dataInicio) conditions.push(sql`${escalas.data} >= ${dataInicio}` as any);
+  if (dataFim) conditions.push(sql`${escalas.data} <= ${dataFim}` as any);
+  return db.select().from(escalas).where(and(...conditions)).orderBy(escalas.data);
 }
 
 export async function createEscala(data: InsertEscala) {
@@ -385,9 +390,13 @@ export async function createHistorico(data: InsertBombeiroProntidaoHistorico) {
   const db = await getDb();
   if (!db) throw new Error("DB unavailable");
   // Fechar o registro vigente anterior do mesmo bombeiro (sem dataFim)
+  if (data.bombeiroId == null || data.quartelId == null) {
+    throw new Error("bombeiroId e quartelId são obrigatórios para criar histórico");
+  }
+
   await db
     .update(bombeiroProntidaoHistorico)
-    .set({ dataFim: data.dataInicio })
+    .set({ dataFim: data.dataInicio ?? null })
     .where(
       and(
         eq(bombeiroProntidaoHistorico.bombeiroId, data.bombeiroId),
@@ -794,8 +803,8 @@ export async function getTrocasByQuartel(quartelId: number, ano: number, mes: nu
 
   return trocas.map(t => ({
     ...t,
-    bombeiroEntra: bomMap[t.bombeiroEntraId] ?? null,
-    bombeireSai: bomMap[t.bombeireSaiId] ?? null,
+    bombeiroEntra: t.bombeiroEntraId != null ? bomMap[t.bombeiroEntraId] ?? null : null,
+    bombeireSai: t.bombeireSaiId != null ? bomMap[t.bombeireSaiId] ?? null : null,
   }));
 }
 

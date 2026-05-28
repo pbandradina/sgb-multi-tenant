@@ -40,9 +40,15 @@ export const escalas = pgTable("escalas", {
   id: serial("id").primaryKey(),
   quartelId: integer("quartel_id").references(() => quarteis.id),
   nome: text("nome").notNull(),
-  data: timestamp("data").notNull(),
+  equipe: text("equipe"),
+  dataInicio: text("data_inicio"),
+  dataFim: text("data_fim"),
+  data: timestamp("data"),
+  observacao: text("observacao"),
   ativa: boolean("ativa").default(true),
 });
+
+export type InsertEscala = typeof escalas.$inferInsert;
 
 // --- RELACIONAMENTO USUÁRIO x QUARTEL (Nova) ---
 export const usuariosQuarteis = pgTable("usuarios_quarteis", {
@@ -76,6 +82,36 @@ export const trocasServico = pgTable("trocas_servico", {
   observacao: text("observacao"),
 });
 
+// --- PRONTIDÃO ---
+export const prontidoes = pgTable("prontidoes", {
+  id: serial("id").primaryKey(),
+  quartelId: integer("quartel_id").references(() => quarteis.id),
+  bombeiroId: integer("bombeiro_id").references(() => bombeiros.id),
+  data: text("data").notNull(),
+  equipe: text("equipe").notNull(),
+  ativo: boolean("ativo").default(true),
+});
+
+// --- HISTÓRICO ---
+export const historicos = pgTable("historicos", {
+  id: serial("id").primaryKey(),
+  quartelId: integer("quartel_id").references(() => quarteis.id),
+  bombeiroId: integer("bombeiro_id").references(() => bombeiros.id),
+  tipo: text("tipo").notNull(),
+  dataInicio: text("data_inicio"),
+  dataFim: text("data_fim"),
+  equipe: text("equipe"),
+  data: timestamp("data").defaultNow(),
+  observacao: text("observacao"),
+  descricao: text("descricao"),
+});
+
+export const quartelUsers = usuariosQuarteis;
+export const bombeiroProntidaoHistorico = historicos;
+
 export type InsertUser = typeof users.$inferInsert;
 export type InsertQuartel = typeof quarteis.$inferInsert;
 export type InsertBombeiro = typeof bombeiros.$inferInsert;
+export type InsertProntidao = typeof prontidoes.$inferInsert;
+export type InsertAfastamento = typeof afastamentos.$inferInsert;
+export type InsertBombeiroProntidaoHistorico = typeof bombeiroProntidaoHistorico.$inferInsert;
