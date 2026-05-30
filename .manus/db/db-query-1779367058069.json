@@ -1,9 +1,0 @@
-{
-  "query": "ALTER TABLE `afastamentos` MODIFY COLUMN `tipo` enum('F','LP','LT','DS','FMO','PA','D','C','LTS','CFS','CAS','EAP','TAF','ME','AG','FER','PF') NOT NULL;",
-  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2pbRGdBvu4fe5ZT.root --database 2PAb8cXTT89NbT9HS42VfF --execute ALTER TABLE `afastamentos` MODIFY COLUMN `tipo` enum('F','LP','LT','DS','FMO','PA','D','C','LTS','CFS','CAS','EAP','TAF','ME','AG','FER','PF') NOT NULL;",
-  "rows": [],
-  "messages": [],
-  "stdout": "",
-  "stderr": "",
-  "execution_time_ms": 1146
-}
